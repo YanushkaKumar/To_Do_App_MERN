@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Pull Code') {
+            steps {
+                echo 'Skipping code checkout because image already built'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker Image...'
+                sh 'docker build -t front-end:latest .'
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                echo 'Running Docker Container...'
+                sh '''
+                    docker stop frontend-container || true
+                    docker rm frontend-container || true
+                    docker run -d -p 3000:80 --name frontend-container front-end:latest
+                '''
+            }
+        }
+    }
+}
