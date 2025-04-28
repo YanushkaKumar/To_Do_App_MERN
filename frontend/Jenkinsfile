@@ -22,6 +22,7 @@ pipeline {
                 docker ps -a -q -f name=frontend-container > tmp.txt
                 for /f %%i in (tmp.txt) do docker stop %%i
                 for /f %%i in (tmp.txt) do docker rm %%i
+                del tmp.txt
                 '''
                 bat 'docker run -d -p 3000:80 --name frontend-container front-end:latest'
             }
