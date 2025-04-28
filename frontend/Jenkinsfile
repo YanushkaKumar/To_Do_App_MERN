@@ -11,7 +11,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker Image...'
-                bat 'docker build -t front-end:latest .'
+                bat 'docker build -t front-end:latest ./frontend'
             }
         }
 
@@ -19,10 +19,10 @@ pipeline {
             steps {
                 echo 'Running Docker Container...'
                 bat '''
-                    docker stop frontend-container || true
-                    docker rm frontend-container || true
-                    docker run -d -p 3000:80 --name frontend-container front-end:latest
+                docker stop frontend-container
+                docker rm frontend-container
                 '''
+                bat 'docker run -d -p 3000:80 --name frontend-container front-end:latest'
             }
         }
     }
