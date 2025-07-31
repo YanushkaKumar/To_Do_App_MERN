@@ -1,7 +1,7 @@
 export const styles = {
     container: {
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+      background: 'linear-gradient(135deg, #ffffffff 0%, #e7dca0 100%)',
       fontFamily: 'system-ui, -apple-system, sans-serif'
     },
     main: {
