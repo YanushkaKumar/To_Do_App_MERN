@@ -150,7 +150,7 @@ app.get('/health', (req, res) => {
 
 // --- Auth Routes (keeping existing paths for compatibility) ---
 
-app.post('/register', async (req, res) => {
+app.post('/api/register', async (req, res) => { // Must have /api
     try {
         const { username, password } = req.body;
         
@@ -175,7 +175,7 @@ app.post('/register', async (req, res) => {
     }
 });
 
-app.post('/login', async (req, res) => {
+app.post('/api/login', async (req, res) => { // Must have /api
     try {
         const { username, password } = req.body;
         
@@ -205,7 +205,6 @@ app.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Login failed' });
     }
 });
-
 app.post('/send-message', async (req, res) => {
     const { name, email, message } = req.body;
     
