@@ -1,0 +1,62 @@
+services:
+  # Backend Service (Node.js API)
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    ports:
+      # Map host port 5050 to container port 5050
+      - "5050:5050"
+    environment:
+      # Environment variables
+      - NODE_ENV=production
+      - PORT=5050
+      - MONGO_URI=mongodb://mongo:27017/todo_app_mern
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Frontend Service (React App)
+  frontend:
+    build:
+      # The context is now the 'App' directory where the frontend code lives
+      context: ./App
+      # The Dockerfile should be inside the 'App' directory as well
+      dockerfile: frontend.Dockerfile
+    ports:
+      # Map host port 3000 to container port 80 (Nginx)
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # MongoDB Service
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    # Add health check for MongoDB
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Define the network
+networks:
+  app-network:
+    driver: bridge
+
+# Define the volume for MongoDB data persistence
+volumes:
+  mongo-data:
+    driver: local

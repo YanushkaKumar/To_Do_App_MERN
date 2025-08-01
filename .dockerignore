@@ -1,0 +1,18 @@
+# This file prevents local modules, logs, and other unnecessary files
+# from being copied into your Docker image.
+
+# Git and Docker specific files
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# Node.js dependencies (these will be installed inside the container)
+node_modules
+App/node_modules
+
+# Log files
+npm-debug.log
+
+# Documentation
+README.md

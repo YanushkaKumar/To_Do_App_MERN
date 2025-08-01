@@ -24,7 +24,7 @@ function Register() {
     setIsLoading(true);
     
     try {
-      const res = await axios.post("http://localhost:5000/register", { 
+      const res = await axios.post("http://localhost:5050/register", { 
         username, 
         password 
       });
@@ -34,7 +34,7 @@ function Register() {
       
       if (res.data.success) {
         setTimeout(() => {
-          window.location.href = "/login";
+          window.location.href = "/api/tasks";
         }, 1500);
       }
     } catch (error) {

@@ -9,10 +9,13 @@ import Sidebar from './Sidebar';
 import AddTaskForm from './AddTaskForm';
 import TaskItem from './TaskItem';
 
-// API Configuration - Update these if your backend uses different settings
-const API_BASE_URL = 'http://localhost:5000';
+// FIXED: API Configuration for Docker environment
+// When running in Docker, use relative paths that go through nginx proxy
+// When running in development, use direct backend URL
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_BASE_URL = isDevelopment ? 'http://localhost:5050' : '';
 const API_ENDPOINTS = {
-  tasks: `${API_BASE_URL}/tasks`,
+  tasks: `${API_BASE_URL}/api/tasks`, // Note the /api prefix for Docker
 };
 
 const AdvancedTodoApp = () => {
@@ -45,9 +48,14 @@ const AdvancedTodoApp = () => {
 
   // API headers with auth
   const getHeaders = (includeContentType = false) => {
-    const headers = {
-      'Authorization': `Bearer ${getAuthToken()}`,
-    };
+    const headers = {};
+    
+    // Only add auth header if token exists
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     if (includeContentType) {
       headers['Content-Type'] = 'application/json';
     }
@@ -61,14 +69,9 @@ const AdvancedTodoApp = () => {
         setLoading(true);
         setError('');
         
-        const token = getAuthToken();
-        if (!token) {
-          setError('No authentication token found. Please login.');
-          setLoading(false);
-          return;
-        }
-        
         console.log('Fetching tasks from:', API_ENDPOINTS.tasks);
+        console.log('Environment:', process.env.NODE_ENV);
+        console.log('API Base URL:', API_BASE_URL);
         
         const response = await fetch(API_ENDPOINTS.tasks, {
           headers: getHeaders(),
@@ -94,7 +97,7 @@ const AdvancedTodoApp = () => {
       } catch (error) {
         console.error('Error fetching tasks:', error);
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          setError('Cannot connect to server. Please check if your backend is running on http://localhost:5000');
+          setError(`Cannot connect to server. Please check if your backend is running${isDevelopment ? ' on http://localhost:5050' : ''}`);
         } else {
           setError('Network error. Please check your connection and server status.');
         }
@@ -119,12 +122,6 @@ const AdvancedTodoApp = () => {
     };
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('No authentication token found. Please login.');
-        return;
-      }
-
       const response = await fetch(API_ENDPOINTS.tasks, {
         method: 'POST',
         headers: getHeaders(true),
@@ -165,13 +162,7 @@ const AdvancedTodoApp = () => {
     if (!task) return;
   
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('No authentication token found. Please login.');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ completed: !task.completed }),
@@ -194,13 +185,7 @@ const AdvancedTodoApp = () => {
   // Delete task
   const deleteTask = async (id) => {
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('No authentication token found. Please login.');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       });
@@ -238,16 +223,10 @@ const AdvancedTodoApp = () => {
     }
     
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('No authentication token found. Please login.');
-        return;
-      }
-
       console.log('Saving edit for task ID:', editingTask);
       console.log('New text:', editingText);
 
-      const response = await fetch(`${API_BASE_URL}/tasks/${editingTask}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${editingTask}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ text: editingText.trim() }),
@@ -281,13 +260,7 @@ const AdvancedTodoApp = () => {
     if (!task) return;
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('No authentication token found. Please login.');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ archived: !task.archived }),
@@ -315,13 +288,7 @@ const AdvancedTodoApp = () => {
     if (!task) return;
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('No authentication token found. Please login.');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ important: !task.important }),

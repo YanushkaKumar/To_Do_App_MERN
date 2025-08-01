@@ -14,13 +14,13 @@ function Login() {
     setError("");
     
     try {
-      const res = await axios.post("http://localhost:5000/login", { 
+      const res = await axios.post("http://localhost:5050/login", { 
         username, 
         password 
       });
       
       localStorage.setItem("token", res.data.token);
-      window.location.href = "/tasks";
+      window.location.href = "/api/tasks";
     } catch (error) {
       setError(error.response?.data?.error || "Login failed. Please try again.Later");
     } finally {
