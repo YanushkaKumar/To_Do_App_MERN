@@ -1,5 +1,15 @@
 import React, { useRef, useEffect } from 'react';
-import { Trash2, Edit3, Check, X, Archive, Star, Calendar } from 'lucide-react';
+import { 
+  Check, 
+  Star, 
+  Archive, 
+  Trash2, 
+  Edit3, 
+  Save, 
+  X,
+  Calendar,
+  Tag
+} from 'lucide-react';
 import { styles } from './styles';
 import { priorities } from './constants';
 import { isOverdue } from './utils';
@@ -22,41 +32,63 @@ const TaskItem = ({
   draggedTask
 }) => {
   const editInputRef = useRef(null);
-
-  useEffect(() => {
-    if (editingTask === task.id && editInputRef.current) {
-      editInputRef.current.focus();
-    }
-  }, [editingTask, task.id]);
-
+  
+  // Use _id for MongoDB tasks, fallback to id for compatibility
+  const taskId = task._id || task.id;
+  const isEditing = editingTask === taskId;
   return (
     <div
-      key={task.id}
-      draggable
-      onDragStart={(e) => handleDragStart(e, task)}
+      key={taskId}
+      draggable={!isEditing}
+      onDragStart={(e) => !isEditing && handleDragStart(e, task)}
       onDragOver={handleDragOver}
-      onDrop={(e) => handleDrop(e, task)}
+      onDrop={(e) => !isEditing && handleDrop(e, task)}
       style={{
         ...styles.taskItem,
-        opacity: draggedTask && draggedTask.id === task.id ? 0.5 : 1,
-        borderLeft: `4px solid ${task.completed ? '#D1D5DB' : (priorities.find(p => p.id === task.priority)?.color || '#D1D5DB')}`,
+        opacity: draggedTask && (draggedTask._id || draggedTask.id) === taskId ? 0.5 : 1,
+        borderLeft: `4px solid ${task.completed ? '#D1D5DB' : (priorities?.find(p => p.id === task.priority)?.color || '#D1D5DB')}`,
       }}
     >
-      {editingTask === task.id ? (
+      {isEditing ? (
         <div style={styles.taskContent}>
           <input
             ref={editInputRef}
             type="text"
             value={editingText}
             onChange={(e) => setEditingText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+              }
+            }}
             style={styles.editInput}
+            placeholder="Enter task text..."
           />
           <div style={styles.editActions}>
-            <button onClick={saveEdit} style={{...styles.actionButton, color: '#10B981'}}>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Save button clicked in TaskItem');
+                saveEdit();
+              }} 
+              style={{...styles.actionButton, color: '#10B981'}}
+              title="Save changes"
+            >
               <Check style={{ width: '18px', height: '18px' }} />
             </button>
-            <button onClick={cancelEdit} style={{...styles.actionButton, color: '#EF4444'}}>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Cancel button clicked in TaskItem');
+                cancelEdit();
+              }} 
+              style={{...styles.actionButton, color: '#EF4444'}}
+              title="Cancel editing"
+            >
               <X style={{ width: '18px', height: '18px' }} />
             </button>
           </div>
@@ -64,7 +96,10 @@ const TaskItem = ({
       ) : (
         <div style={styles.taskContent}>
           <div
-            onClick={() => toggleComplete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleComplete(taskId);
+            }}
             style={{
               ...styles.checkbox,
               ...(task.completed ? styles.checkboxCompleted : styles.checkboxIncomplete)
@@ -79,33 +114,70 @@ const TaskItem = ({
             }}>{task.text}</p>
             <div style={styles.taskMeta}>
               {task.dueDate && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isOverdue(task.dueDate) && !task.completed ? '#EF4444' : '#6B7280' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px', 
+                  color: isOverdue && isOverdue(task.dueDate) && !task.completed ? '#EF4444' : '#6B7280' 
+                }}>
                   <Calendar style={{ width: '14px', height: '14px' }} />
                   <span>{new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 </div>
               )}
-              {task.tags.map(tag => (
+              {task.tags && task.tags.map(tag => (
                 <span key={tag} style={styles.tag}>{tag}</span>
               ))}
             </div>
           </div>
           <div style={styles.taskActions}>
             <button
-              onClick={() => toggleImportant(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleImportant(taskId);
+              }}
               style={{
                 ...styles.actionButton,
                 color: task.important ? '#F59E0B' : '#9CA3AF'
               }}
+              title={task.important ? 'Remove from important' : 'Mark as important'}
             >
               <Star style={{ width: '16px', height: '16px', fill: task.important ? '#F59E0B' : 'none' }} />
             </button>
-            <button onClick={() => startEdit(task)} style={styles.actionButton}>
+            
+            {/* FIXED EDIT BUTTON */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Edit button clicked for task:', task);
+                console.log('Task ID:', taskId);
+                startEdit(task);
+              }} 
+              style={styles.actionButton}
+              title="Edit task"
+            >
               <Edit3 style={{ width: '16px', height: '16px' }} />
             </button>
-            <button onClick={() => archiveTask(task.id)} style={styles.actionButton}>
+            
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                archiveTask(taskId);
+              }} 
+              style={styles.actionButton}
+              title={task.archived ? 'Unarchive task' : 'Archive task'}
+            >
               <Archive style={{ width: '16px', height: '16px' }} />
             </button>
-            <button onClick={() => deleteTask(task.id)} style={{...styles.actionButton, color: '#EF4444'}}>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm('Are you sure you want to delete this task?')) {
+                  deleteTask(taskId);
+                }
+              }} 
+              style={{...styles.actionButton, color: '#EF4444'}}
+              title="Delete task"
+            >
               <Trash2 style={{ width: '16px', height: '16px' }} />
             </button>
           </div>

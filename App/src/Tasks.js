@@ -13,9 +13,6 @@ import TaskItem from './TaskItem';
 const API_BASE_URL = 'http://localhost:5000';
 const API_ENDPOINTS = {
   tasks: `${API_BASE_URL}/tasks`,
-  // Alternative endpoints you might need:
-  // tasks: `${API_BASE_URL}/api/tasks`,
-  // tasks: `${API_BASE_URL}/api/v1/tasks`,
 };
 
 const AdvancedTodoApp = () => {
@@ -36,9 +33,14 @@ const AdvancedTodoApp = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Get auth token
+  // Get auth token - FIXED: Handle case where localStorage might not be available
   const getAuthToken = () => {
-    return localStorage.getItem('token');
+    try {
+      return localStorage.getItem('token');
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      return null;
+    }
   };
 
   // API headers with auth
@@ -66,16 +68,13 @@ const AdvancedTodoApp = () => {
           return;
         }
         
-        // Log the request for debugging
         console.log('Fetching tasks from:', API_ENDPOINTS.tasks);
-        console.log('Using token:', token ? 'Token present' : 'No token');
         
         const response = await fetch(API_ENDPOINTS.tasks, {
           headers: getHeaders(),
         });
 
         console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -133,7 +132,8 @@ const AdvancedTodoApp = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to add task: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to add task: ${response.statusText}`);
       }
 
       const savedTask = await response.json();
@@ -148,7 +148,7 @@ const AdvancedTodoApp = () => {
       setError('');
     } catch (error) {
       console.error('Error adding task:', error);
-      setError('Failed to add task. Please try again.');
+      setError(error.message || 'Failed to add task. Please try again.');
     }
   };
   
@@ -178,7 +178,8 @@ const AdvancedTodoApp = () => {
       });
   
       if (!response.ok) {
-        throw new Error(`Failed to update task: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to update task: ${response.statusText}`);
       }
   
       const updatedTask = await response.json();
@@ -186,7 +187,7 @@ const AdvancedTodoApp = () => {
       setError('');
     } catch (error) {
       console.error('Error toggling task completion:', error);
-      setError('Failed to update task completion. Please try again.');
+      setError(error.message || 'Failed to update task completion. Please try again.');
     }
   };
 
@@ -205,26 +206,36 @@ const AdvancedTodoApp = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to delete task: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to delete task: ${response.statusText}`);
       }
 
       setTasks(prev => prev.filter(task => task._id !== id));
       setError('');
     } catch (error) {
       console.error('Error deleting task:', error);
-      setError('Failed to delete task. Please try again.');
+      setError(error.message || 'Failed to delete task. Please try again.');
     }
   };
 
-  // Start editing task
+  // FIXED: Start editing task - now properly handles the task object
   const startEdit = (task) => {
+    console.log('Starting edit for task:', task);
     setEditingTask(task._id);
     setEditingText(task.text);
   };
 
-  // Save edited task
+  // FIXED: Save edited task - improved error handling and validation
   const saveEdit = async () => {
-    if (!editingText.trim() || !editingTask) return;
+    if (!editingText.trim()) {
+      setError('Task text cannot be empty');
+      return;
+    }
+    
+    if (!editingTask) {
+      setError('No task selected for editing');
+      return;
+    }
     
     try {
       const token = getAuthToken();
@@ -233,28 +244,38 @@ const AdvancedTodoApp = () => {
         return;
       }
 
+      console.log('Saving edit for task ID:', editingTask);
+      console.log('New text:', editingText);
+
       const response = await fetch(`${API_BASE_URL}/tasks/${editingTask}`, {
         method: 'PUT',
         headers: getHeaders(true),
-        body: JSON.stringify({ text: editingText }),
+        body: JSON.stringify({ text: editingText.trim() }),
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to update task: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to update task: ${response.statusText}`);
       }
 
       const updatedTask = await response.json();
+      console.log('Updated task received:', updatedTask);
+      
       setTasks(prev => prev.map(task => (task._id === editingTask ? updatedTask : task)));
+      
+      // Clear editing state
       setEditingTask(null);
       setEditingText('');
       setError('');
+      
+      console.log('Edit saved successfully');
     } catch (error) {
       console.error('Error updating task:', error);
-      setError('Failed to update task. Please try again.');
+      setError(error.message || 'Failed to update task. Please try again.');
     }
   };
 
-  // Archive task (local state only for now)
+  // Archive task
   const archiveTask = async (id) => {
     const task = tasks.find(t => t._id === id);
     if (!task) return;
@@ -273,7 +294,8 @@ const AdvancedTodoApp = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to archive task: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to archive task: ${response.statusText}`);
       }
 
       const updatedTask = await response.json();
@@ -281,12 +303,13 @@ const AdvancedTodoApp = () => {
       setError('');
     } catch (error) {
       console.error('Error archiving task:', error);
+      setError(error.message || 'Failed to archive task. Please try again.');
       // Fallback to local state update if backend fails
       setTasks(prev => prev.map(task => task._id === id ? { ...task, archived: !task.archived } : task));
     }
   };
 
-  // Toggle important (local state only for now)
+  // Toggle important
   const toggleImportant = async (id) => {
     const task = tasks.find(t => t._id === id);
     if (!task) return;
@@ -305,7 +328,8 @@ const AdvancedTodoApp = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to update task importance: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to update task importance: ${response.statusText}`);
       }
 
       const updatedTask = await response.json();
@@ -313,15 +337,18 @@ const AdvancedTodoApp = () => {
       setError('');
     } catch (error) {
       console.error('Error toggling task importance:', error);
+      setError(error.message || 'Failed to update task importance. Please try again.');
       // Fallback to local state update if backend fails
       setTasks(prev => prev.map(task => task._id === id ? { ...task, important: !task.important } : task));
     }
   };
 
-  // Cancel editing
+  // FIXED: Cancel editing - now clears all editing state
   const cancelEdit = () => {
+    console.log('Canceling edit');
     setEditingTask(null);
     setEditingText('');
+    setError(''); // Clear any edit-related errors
   };
 
   // Drag and drop handlers
@@ -386,6 +413,19 @@ const AdvancedTodoApp = () => {
                 border: '1px solid #fecaca'
               }}>
                 {error}
+                <button 
+                  onClick={() => setError('')}
+                  style={{
+                    marginLeft: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#dc2626',
+                    cursor: 'pointer',
+                    fontSize: '16px'
+                  }}
+                >
+                  ×
+                </button>
               </div>
             )}
 
