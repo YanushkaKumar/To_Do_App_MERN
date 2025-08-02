@@ -1,5 +1,5 @@
 // This is a declarative Jenkins pipeline script, corrected for a Windows environment
-// and using the standard --password-stdin method for ECR login.
+// and using the correct Docker login method and Dockerfile paths.
 
 pipeline {
     agent any
@@ -30,15 +30,12 @@ pipeline {
             }
         }
 
-        // This stage logs into AWS ECR once for all subsequent stages.
         stage('Login to AWS ECR') {
             steps {
                 script {
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
                         echo "Authenticating with AWS ECR..."
-                        
-                        // *** FIX: Pipe the password directly to 'docker login' using --password-stdin ***
-                        // This is the most robust and secure method for programmatic logins.
+                        // Pipe the password directly to 'docker login' using --password-stdin
                         bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
                     }
                 }
@@ -49,13 +46,11 @@ pipeline {
             steps {
                 script {
                     echo "Building and pushing backend Docker image..."
-                    // Build the image, tagging it with the ECR URL and the unique build tag.
-                    def backendImage = docker.build("${ECR_REGISTRY_URL}/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}", '.')
+                    // *** FIX: Specify the correct Dockerfile name using the -f flag ***
+                    // The second argument to docker.build() passes arguments to the build command.
+                    def backendImage = docker.build("${ECR_REGISTRY_URL}/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f backend.Dockerfile .")
                     
-                    // Push the unique tag.
                     backendImage.push()
-                    
-                    // Also tag the image as 'latest' and push that tag.
                     backendImage.push('latest')
                 }
             }
@@ -65,13 +60,10 @@ pipeline {
             steps {
                 script {
                     echo "Building and pushing frontend Docker image..."
-                    // The Dockerfile is inside the 'App' directory.
-                    def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", './App')
+                    // *** FIX: Specify the correct Dockerfile name and build context ***
+                    def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f App/frontend.Dockerfile ./App")
 
-                    // Push the unique tag.
                     frontendImage.push()
-
-                    // Also tag the image as 'latest' and push that tag.
                     frontendImage.push('latest')
                 }
             }
@@ -97,7 +89,6 @@ pipeline {
     post {
         always {
             echo "Logging out from AWS ECR..."
-            // It's good practice to log out from the Docker registry.
             bat "docker logout ${ECR_REGISTRY_URL}"
         }
     }
