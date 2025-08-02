@@ -12,9 +12,12 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    
     setMessage({ type: "", text: "" });
     
+    if (!username.trim() || !password.trim()) {
+      setMessage({ type: "error", text: "Username and password are required" });
+      return;
+    }
     
     if (password !== confirmPassword) {
       setMessage({ type: "error", text: "Passwords do not match" });
@@ -24,13 +27,19 @@ function Register() {
     setIsLoading(true);
     
     try {
-      const res = await axios.post("/api/register", { 
-        username, 
-        password 
+      console.log("Attempting registration with:", { 
+        username: username.trim(),
+        passwordLength: password.length,
+        confirmPasswordLength: confirmPassword.length
       });
       
-      setMessage({ type: "success", text: res.data.message });
+      const res = await axios.post("http://localhost:5050/api/register", { 
+        username: username.trim(), 
+        password: password.trim() 
+      });
       
+      console.log("Registration response:", res.data);
+      setMessage({ type: "success", text: res.data.message });
       
       if (res.data.success) {
         setTimeout(() => {
@@ -38,10 +47,26 @@ function Register() {
         }, 1500);
       }
     } catch (error) {
-      setMessage({ 
-        type: "error", 
-        text: error.response?.data?.error || "Registration failed" 
+      console.error("Registration error full details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        request: error.request
       });
+      
+      if (error.response) {
+        const errorMessage = error.response.data?.error || 
+                           error.response.data?.message || 
+                           `Server error: ${error.response.status}`;
+        setMessage({ type: "error", text: errorMessage });
+        console.log("Server error details:", error.response.data);
+      } else if (error.request) {
+        setMessage({ type: "error", text: "Cannot connect to server. Please check your connection." });
+        console.log("No response received:", error.request);
+      } else {
+        setMessage({ type: "error", text: "Registration failed. Please try again." });
+        console.log("Unexpected error:", error.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +98,7 @@ function Register() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                autoComplete="username"
               />
             </div>
           </div>
@@ -88,6 +114,7 @@ function Register() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="new-password"
               />
             </div>
           </div>
@@ -103,6 +130,7 @@ function Register() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                autoComplete="new-password"
               />
             </div>
           </div>
