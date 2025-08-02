@@ -1,5 +1,5 @@
 // This is a declarative Jenkins pipeline script, corrected for a Windows environment
-// and using the correct Docker login method for AWS ECR.
+// and using the standard --password-stdin method for ECR login.
 
 pipeline {
     agent any
@@ -36,11 +36,10 @@ pipeline {
                 script {
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
                         echo "Authenticating with AWS ECR..."
-                        // Get a temporary login password from ECR.
-                        def ecrLogin = bat(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
                         
-                        // Use an explicit 'docker login' command
-                        bat "docker login --username AWS --password ${ecrLogin} ${ECR_REGISTRY_URL}"
+                        // *** FIX: Pipe the password directly to 'docker login' using --password-stdin ***
+                        // This is the most robust and secure method for programmatic logins.
+                        bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
                     }
                 }
             }
@@ -96,13 +95,10 @@ pipeline {
     }
     
     post {
-        // This block runs regardless of pipeline success or failure.
         always {
-            // *** FIX: Removed the 'stage' wrapper from the post block ***
             echo "Logging out from AWS ECR..."
             // It's good practice to log out from the Docker registry.
             bat "docker logout ${ECR_REGISTRY_URL}"
         }
     }
 }
-//
