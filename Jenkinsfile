@@ -46,8 +46,7 @@ pipeline {
             steps {
                 script {
                     echo "Building and pushing backend Docker image..."
-                    // *** FIX: Specify the correct Dockerfile name using the -f flag ***
-                    // The second argument to docker.build() passes arguments to the build command.
+                    // Specify the correct Dockerfile name using the -f flag
                     def backendImage = docker.build("${ECR_REGISTRY_URL}/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f backend.Dockerfile .")
                     
                     backendImage.push()
@@ -60,7 +59,11 @@ pipeline {
             steps {
                 script {
                     echo "Building and pushing frontend Docker image..."
-                    // *** FIX: Specify the correct Dockerfile name and build context ***
+                    
+                    // *** FIX: Copy the nginx.conf into the build context directory ***
+                    bat 'copy nginx.conf App\\nginx.conf'
+
+                    // Specify the correct Dockerfile name and build context
                     def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f App/frontend.Dockerfile ./App")
 
                     frontendImage.push()
