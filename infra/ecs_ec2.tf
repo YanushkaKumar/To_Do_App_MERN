@@ -80,7 +80,6 @@ resource "aws_ecs_task_definition" "backend" {
       name      = "backend"
       image     = "${aws_ecr_repository.backend.repository_url}:latest"
       cpu       = 128
-      # *** FIX: Reduced memory reservation ***
       memory    = 240
       essential = true
       portMappings = [
@@ -99,6 +98,15 @@ resource "aws_ecs_task_definition" "backend" {
           valueFrom = aws_ssm_parameter.jwt_secret.name
         }
       ]
+      # This container sends logs to CloudWatch
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = "/ecs/backend-task"
+          "awslogs-region"        = "us-east-1"
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
 }
@@ -106,12 +114,13 @@ resource "aws_ecs_task_definition" "backend" {
 # Frontend Task Definition
 resource "aws_ecs_task_definition" "frontend" {
   family                = "frontend-task-ec2"
+  # *** FIX: Added missing execution role and log configuration ***
+  execution_role_arn    = aws_iam_role.ecs_task_execution_role.arn
   container_definitions = jsonencode([
     {
       name      = "frontend"
       image     = "${aws_ecr_repository.frontend.repository_url}:latest"
       cpu       = 128
-      # *** FIX: Reduced memory reservation ***
       memory    = 240
       essential = true
       portMappings = [
@@ -120,6 +129,15 @@ resource "aws_ecs_task_definition" "frontend" {
           hostPort      = 80
         }
       ]
+      # This will now send logs to CloudWatch so we can see the error
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = "/ecs/frontend-task"
+          "awslogs-region"        = "us-east-1"
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
 }
