@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import "./AuthStyles.css"; 
+import "./AuthStyles.css";
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -12,17 +12,52 @@ function Login() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    
+
+    // Add validation
+    if (!username.trim() || !password.trim()) {
+      setError("Please enter both username and password");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const res = await axios.post("/api/login", { 
-        username, 
-        password 
-      });
+      console.log("Attempting login with:", { username }); // Debug log
       
-      localStorage.setItem("token", res.data.token);
-      window.location.href = "/api/tasks";
+      const res = await axios.post("http://localhost:5050/api/login", {
+        username: username.trim(),
+        password: password.trim(),
+      });
+
+      console.log("Login response:", res.data); // Debug log
+
+      if (res.data.success && res.data.token) {
+        localStorage.setItem("token", res.data.token);
+        // Also store username if needed
+        localStorage.setItem("username", res.data.username);
+        
+        // Use React Router navigation instead of window.location if possible
+        // For now, keeping your existing redirect approach
+        window.location.href = "/tasks";
+      } else {
+        setError("Login failed. Invalid response from server.");
+      }
     } catch (error) {
-      setError(error.response?.data?.error || "Login failed. Please try again.Later");
+      console.error("Login error:", error); // Debug log
+      
+      // More detailed error handling
+      if (error.response) {
+        // Server responded with error status
+        const errorMessage = error.response.data?.error || 
+                           error.response.data?.message || 
+                           `Server error: ${error.response.status}`;
+        setError(errorMessage);
+      } else if (error.request) {
+        // Request was made but no response received
+        setError("Cannot connect to server. Please check your connection.");
+      } else {
+        // Something else happened
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -35,9 +70,9 @@ function Login() {
           <h2>Welcome Back</h2>
           <p>Sign in to your account</p>
         </div>
-        
+
         {error && <div className="error-message">{error}</div>}
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="username">Username</label>
@@ -50,10 +85,11 @@ function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                autoComplete="username"
               />
             </div>
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <div className="input-container">
@@ -65,19 +101,20 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </div>
           </div>
-          
-          <button 
-            type="submit" 
-            className={`submit-button ${isLoading ? 'loading' : ''}`}
+
+          <button
+            type="submit"
+            className={`submit-button ${isLoading ? "loading" : ""}`}
             disabled={isLoading}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isLoading ? "Signing In..." : "Sign In"}
           </button>
         </form>
-        
+
         <div className="auth-footer">
           <p>
             Don't have an account? <a href="/registration">Create one now</a>

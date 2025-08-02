@@ -150,24 +150,28 @@ app.get('/health', (req, res) => {
 
 // --- Auth Routes (keeping existing paths for compatibility) ---
 
-app.post('/api/register', async (req, res) => { // Must have /api
+app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
+        
+        console.log('Registration attempt:', { username, hasPassword: !!password });
         
         if (!username || !password) {
             return res.status(400).json({ success: false, error: 'Username and password are required' });
         }
 
-        const existingUser = await User.findOne({ username });
+        const existingUser = await User.findOne({ username: username.trim() });
         if (existingUser) {
+            console.log('Username already exists:', username);
             return res.status(400).json({ success: false, error: 'Username already exists' });
         }
         
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        const newUser = new User({ username, password: hashedPassword });
+        const newUser = new User({ username: username.trim(), password: hashedPassword });
         await newUser.save();
         
+        console.log('User registered successfully:', username);
         res.status(201).json({ success: true, message: 'Registration successful!' });
     } catch (error) {
         console.error('Registration error:', error);
@@ -175,36 +179,57 @@ app.post('/api/register', async (req, res) => { // Must have /api
     }
 });
 
-app.post('/api/login', async (req, res) => { // Must have /api
+// UPDATED LOGIN ROUTE with better debugging
+app.post('/api/login', async (req, res) => {
     try {
+        console.log('Login attempt received:', { 
+            body: req.body,
+            username: req.body?.username,
+            hasPassword: !!req.body?.password 
+        });
+
         const { username, password } = req.body;
         
         if (!username || !password) {
+            console.log('Missing credentials:', { username: !!username, password: !!password });
             return res.status(400).json({ error: 'Username and password are required' });
         }
 
-        const user = await User.findOne({ username });
+        console.log('Looking for user:', username.trim());
+        const user = await User.findOne({ username: username.trim() });
+        
         if (!user) {
+            console.log('User not found:', username);
             return res.status(400).json({ error: 'Invalid credentials' });
         }
         
+        console.log('User found, checking password...');
         const isMatch = await bcrypt.compare(password, user.password);
+        
         if (!isMatch) {
+            console.log('Password mismatch for user:', username);
             return res.status(400).json({ error: 'Invalid credentials' });
         }
         
+        console.log('Password match successful, generating token...');
         const token = jwt.sign(
             { id: user._id, username: user.username }, 
             JWT_SECRET, 
             { expiresIn: '1d' }
         );
         
+        console.log('Login successful for user:', username);
         res.json({ success: true, token, username: user.username });
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Login error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         res.status(500).json({ error: 'Login failed' });
     }
 });
+
 app.post('/send-message', async (req, res) => {
     const { name, email, message } = req.body;
     

@@ -8,13 +8,11 @@ services:
       # Map host port 5050 to container port 5050
       - "5050:5050"
     environment:
-      # Environment variables
+      # Environment variables - Using MongoDB Atlas instead of local mongo
       - NODE_ENV=production
       - PORT=5050
-      - MONGO_URI=mongodb://mongo:27017/todo_app_mern
-      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-    depends_on:
-      - mongo
+      - MONGO_URI=mongodb+srv://yanushkakumaar:D5hGHSieYM6CFaXx@cluster0.blnzamp.mongodb.net/todoDB?retryWrites=true&w=majority&appName=Cluster0
+      - JWT_SECRET=12345
     networks:
       - app-network
     restart: unless-stopped
@@ -35,28 +33,9 @@ services:
       - app-network
     restart: unless-stopped
 
-  # MongoDB Service
-  mongo:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - app-network
-    # Add health check for MongoDB
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 # Define the network
 networks:
   app-network:
     driver: bridge
 
-# Define the volume for MongoDB data persistence
-volumes:
-  mongo-data:
-    driver: local
+# Note: Removed mongo service and mongo-data volume since we're using MongoDB Atlas
