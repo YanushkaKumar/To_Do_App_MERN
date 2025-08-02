@@ -60,9 +60,7 @@ pipeline {
                 script {
                     echo "Building and pushing frontend Docker image..."
                     
-                    // The 'copy' command has been removed.
-                    // The build context is now the project root '.', which allows the Dockerfile
-                    // to access both the 'App' directory and the 'nginx.conf' file.
+                    // Use the project root as the build context and specify the Dockerfile path
                     def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f App/frontend.Dockerfile .")
 
                     frontendImage.push()
