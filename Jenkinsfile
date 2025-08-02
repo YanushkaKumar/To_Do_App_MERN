@@ -39,8 +39,7 @@ pipeline {
                         // Get a temporary login password from ECR.
                         def ecrLogin = bat(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
                         
-                        // *** FIX: Use an explicit 'docker login' command ***
-                        // This is the correct way to use the temporary password from AWS.
+                        // Use an explicit 'docker login' command
                         bat "docker login --username AWS --password ${ecrLogin} ${ECR_REGISTRY_URL}"
                     }
                 }
@@ -97,15 +96,12 @@ pipeline {
     }
     
     post {
+        // This block runs regardless of pipeline success or failure.
         always {
-            // This stage runs regardless of pipeline success or failure.
-            stage('Logout from ECR') {
-                steps {
-                    echo "Logging out from AWS ECR..."
-                    // It's good practice to log out from the Docker registry.
-                    bat "docker logout ${ECR_REGISTRY_URL}"
-                }
-            }
+            // *** FIX: Removed the 'stage' wrapper from the post block ***
+            echo "Logging out from AWS ECR..."
+            // It's good practice to log out from the Docker registry.
+            bat "docker logout ${ECR_REGISTRY_URL}"
         }
     }
 }
