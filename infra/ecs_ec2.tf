@@ -6,7 +6,7 @@ resource "aws_security_group" "ecs_instance_sg" {
 
   ingress {
     protocol        = "tcp"
-    from_port       = 0
+    from_port       = 0 # Allow all ports from the ALB
     to_port         = 65535
     security_groups = [aws_security_group.alb_sg.id]
   }
@@ -33,8 +33,7 @@ data "aws_ami" "ecs_ami" {
 resource "aws_launch_template" "ecs_launch_template" {
   name_prefix   = "ecs-instance-"
   image_id      = data.aws_ami.ecs_ami.id
-  # --- CHANGE IS HERE ---
-  instance_type = "t3.micro" # Using t3.micro for Free Tier eligibility
+  instance_type = "t3.micro" # Free Tier eligible
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance_profile.name
@@ -81,7 +80,8 @@ resource "aws_ecs_task_definition" "backend" {
       name      = "backend"
       image     = "${aws_ecr_repository.backend.repository_url}:latest"
       cpu       = 128
-      memory    = 256
+      # *** FIX: Reduced memory reservation ***
+      memory    = 240
       essential = true
       portMappings = [
         {
@@ -111,7 +111,8 @@ resource "aws_ecs_task_definition" "frontend" {
       name      = "frontend"
       image     = "${aws_ecr_repository.frontend.repository_url}:latest"
       cpu       = 128
-      memory    = 256
+      # *** FIX: Reduced memory reservation ***
+      memory    = 240
       essential = true
       portMappings = [
         {
