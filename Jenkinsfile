@@ -34,20 +34,23 @@ pipeline {
         // Stage 2: Build the backend Docker image and push it to ECR.
         stage('Build & Push Backend') {
             steps {
-                echo "Building backend Docker image..."
-                // The 'withAWS' block uses the Jenkins credentials to interact with AWS.
-                withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                    // Get a temporary login password from ECR.
-                    def ecrLogin = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
-                    
-                    // Use the Docker Pipeline plugin to securely log in, build, and push.
-                    docker.withRegistry("https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", [username: 'AWS', password: ecrLogin]) {
-                        // Build the backend image. The Dockerfile is in the root directory.
-                        def backendImage = docker.build("${BACKEND_ECR_REPO_NAME}:${BUILD_NUMBER}", '.')
+                // *** FIX: Wrap complex logic in a 'script' block ***
+                script {
+                    echo "Building backend Docker image..."
+                    // The 'withAWS' block uses the Jenkins credentials to interact with AWS.
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                        // Get a temporary login password from ECR.
+                        def ecrLogin = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
                         
-                        echo "Pushing backend image to ${BACKEND_IMAGE_URL}:${BUILD_NUMBER}"
-                        // Push the image to the ECR repository.
-                        backendImage.push()
+                        // Use the Docker Pipeline plugin to securely log in, build, and push.
+                        docker.withRegistry("https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", [username: 'AWS', password: ecrLogin]) {
+                            // Build the backend image. The Dockerfile is in the root directory.
+                            def backendImage = docker.build("${BACKEND_ECR_REPO_NAME}:${BUILD_NUMBER}", '.')
+                            
+                            echo "Pushing backend image to ${BACKEND_IMAGE_URL}:${BUILD_NUMBER}"
+                            // Push the image to the ECR repository.
+                            backendImage.push()
+                        }
                     }
                 }
             }
@@ -56,17 +59,20 @@ pipeline {
         // Stage 3: Build the frontend Docker image and push it to ECR.
         stage('Build & Push Frontend') {
             steps {
-                echo "Building frontend Docker image..."
-                withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                    def ecrLogin = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
-                    
-                    docker.withRegistry("https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", [username: 'AWS', password: ecrLogin]) {
-                        // Build the frontend image. The Dockerfile is inside the 'App' directory.
-                        // We must specify the build context directory.
-                        def frontendImage = docker.build("${FRONTEND_ECR_REPO_NAME}:${BUILD_NUMBER}", './App')
+                // *** FIX: Wrap complex logic in a 'script' block ***
+                script {
+                    echo "Building frontend Docker image..."
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                        def ecrLogin = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
                         
-                        echo "Pushing frontend image to ${FRONTEND_IMAGE_URL}:${BUILD_NUMBER}"
-                        frontendImage.push()
+                        docker.withRegistry("https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", [username: 'AWS', password: ecrLogin]) {
+                            // Build the frontend image. The Dockerfile is inside the 'App' directory.
+                            // We must specify the build context directory.
+                            def frontendImage = docker.build("${FRONTEND_ECR_REPO_NAME}:${BUILD_NUMBER}", './App')
+                            
+                            echo "Pushing frontend image to ${FRONTEND_IMAGE_URL}:${BUILD_NUMBER}"
+                            frontendImage.push()
+                        }
                     }
                 }
             }
@@ -75,39 +81,39 @@ pipeline {
         // Stage 4: Deploy the new images to the ECS services.
         stage('Deploy to ECS') {
             steps {
-                echo "Deploying new versions to ECS..."
-                withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                    // First, we need to create new task definition revisions with the new image tags.
-                    // This is more robust than updating the service directly with an image override.
+                // *** FIX: Wrap complex logic in a 'script' block ***
+                script {
+                    echo "Deploying new versions to ECS..."
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                        // Get the current backend task definition JSON.
+                        def backendTaskDefJson = sh(script: "aws ecs describe-task-definition --task-definition backend-task-ec2 --query taskDefinition", returnStdout: true).trim()
+                        // Create a new definition with the updated image URL.
+                        def newBackendTaskDef = sh(script: """
+                            echo '${backendTaskDefJson}' | jq '.containerDefinitions[0].image = "${BACKEND_IMAGE_URL}:${BUILD_NUMBER}" | .family = "backend-task-ec2"'
+                        """, returnStdout: true).trim()
+                        // Register the new task definition revision.
+                        def backendTaskRevision = sh(script: "aws ecs register-task-definition --cli-input-json '${newBackendTaskDef}' --query 'taskDefinition.taskDefinitionArn'", returnStdout: true).trim()
+                        echo "Registered new backend task definition: ${backendTaskRevision}"
 
-                    // Get the current backend task definition JSON.
-                    def backendTaskDefJson = sh(script: "aws ecs describe-task-definition --task-definition backend-task-ec2 --query taskDefinition", returnStdout: true).trim()
-                    // Create a new definition with the updated image URL.
-                    def newBackendTaskDef = sh(script: """
-                        echo '${backendTaskDefJson}' | jq '.containerDefinitions[0].image = "${BACKEND_IMAGE_URL}:${BUILD_NUMBER}" | .family = "backend-task-ec2"'
-                    """, returnStdout: true).trim()
-                    // Register the new task definition revision.
-                    def backendTaskRevision = sh(script: "aws ecs register-task-definition --cli-input-json '${newBackendTaskDef}' --query 'taskDefinition.taskDefinitionArn'", returnStdout: true).trim()
-                    echo "Registered new backend task definition: ${backendTaskRevision}"
-
-                    // Get the current frontend task definition JSON.
-                    def frontendTaskDefJson = sh(script: "aws ecs describe-task-definition --task-definition frontend-task-ec2 --query taskDefinition", returnStdout: true).trim()
-                    // Create a new definition with the updated image URL.
-                    def newFrontendTaskDef = sh(script: """
-                        echo '${frontendTaskDefJson}' | jq '.containerDefinitions[0].image = "${FRONTEND_IMAGE_URL}:${BUILD_NUMBER}" | .family = "frontend-task-ec2"'
-                    """, returnStdout: true).trim()
-                    // Register the new task definition revision.
-                    def frontendTaskRevision = sh(script: "aws ecs register-task-definition --cli-input-json '${newFrontendTaskDef}' --query 'taskDefinition.taskDefinitionArn'", returnStdout: true).trim()
-                    echo "Registered new frontend task definition: ${frontendTaskRevision}"
+                        // Get the current frontend task definition JSON.
+                        def frontendTaskDefJson = sh(script: "aws ecs describe-task-definition --task-definition frontend-task-ec2 --query taskDefinition", returnStdout: true).trim()
+                        // Create a new definition with the updated image URL.
+                        def newFrontendTaskDef = sh(script: """
+                            echo '${frontendTaskDefJson}' | jq '.containerDefinitions[0].image = "${FRONTEND_IMAGE_URL}:${BUILD_NUMBER}" | .family = "frontend-task-ec2"'
+                        """, returnStdout: true).trim()
+                        // Register the new task definition revision.
+                        def frontendTaskRevision = sh(script: "aws ecs register-task-definition --cli-input-json '${newFrontendTaskDef}' --query 'taskDefinition.taskDefinitionArn'", returnStdout: true).trim()
+                        echo "Registered new frontend task definition: ${frontendTaskRevision}"
 
 
-                    // Now, update the ECS services to use the new task definition revisions.
-                    // This will trigger a rolling deployment with zero downtime.
-                    echo "Updating backend service..."
-                    sh "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition ${backendTaskRevision}"
-                    
-                    echo "Updating frontend service..."
-                    sh "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${FRONTEND_SERVICE_NAME} --task-definition ${frontendTaskRevision}"
+                        // Now, update the ECS services to use the new task definition revisions.
+                        // This will trigger a rolling deployment with zero downtime.
+                        echo "Updating backend service..."
+                        sh "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition ${backendTaskRevision}"
+                        
+                        echo "Updating frontend service..."
+                        sh "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${FRONTEND_SERVICE_NAME} --task-definition ${frontendTaskRevision}"
+                    }
                 }
             }
         }
