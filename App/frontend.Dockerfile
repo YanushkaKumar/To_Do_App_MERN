@@ -4,11 +4,12 @@ FROM node:18-alpine AS build
 # Set the working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
+# The build context is './App', so we copy directly from the root of the context.
+# --- FIX: Removed 'App/' prefix ---
 COPY package*.json ./
 RUN npm ci --silent
 
-# Copy the rest of the source code
+# --- FIX: Removed 'App/' prefix ---
 COPY . .
 
 # Build the application for production
@@ -23,7 +24,8 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy the build output from the 'build' stage
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Copy the custom Nginx configuration
+# --- FIX: This now requires the build context to be the project root ---
+# To make this work for both docker-compose and Jenkins, we will adjust the build commands.
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Create necessary directories for nginx to work properly
@@ -33,5 +35,5 @@ RUN mkdir -p /tmp/client_temp /tmp/proxy_temp_path /tmp/fastcgi_temp /tmp/uwsgi_
 # Expose port 80
 EXPOSE 80
 
-# Start Nginx (it will run as root by default which is fine for containers)
+# Start Nginx
 CMD ["nginx"]
