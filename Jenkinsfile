@@ -41,6 +41,20 @@ pipeline {
                 }
             }
         }
+        
+        stage('Build & Push Frontend') {
+            steps {
+                script {
+                    echo "Building and pushing frontend Docker image..."
+                    
+                    // Use the project root as the build context and specify the Dockerfile path
+                    def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f App/frontend.Dockerfile .")
+
+                    frontendImage.push()
+                    frontendImage.push('latest')
+                }
+            }
+        }
 
         stage('Build & Push Backend') {
             steps {
@@ -55,19 +69,6 @@ pipeline {
             }
         }
 
-        stage('Build & Push Frontend') {
-            steps {
-                script {
-                    echo "Building and pushing frontend Docker image..."
-                    
-                    // Use the project root as the build context and specify the Dockerfile path
-                    def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f App/frontend.Dockerfile .")
-
-                    frontendImage.push()
-                    frontendImage.push('latest')
-                }
-            }
-        }
 
         stage('Deploy to ECS') {
             steps {
