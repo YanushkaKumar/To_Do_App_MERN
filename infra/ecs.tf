@@ -129,7 +129,7 @@ resource "aws_ecs_task_definition" "frontend" {
           # NOTE: This assumes your load balancer resource is named "aws_lb.main". 
           # If it has a different name, like "aws_lb.app_lb", update it here.
           # If you don't have the LB resource defined, you can temporarily hardcode the value.
-           value = "http://app-lb-749164045.us-east-1.elb.amazonaws.com:5050"
+          value = "http://${aws_lb.main.dns_name}:5050"
         }
       ],
 
