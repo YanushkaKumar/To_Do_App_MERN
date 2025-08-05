@@ -46,8 +46,8 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
 resource "aws_launch_template" "ecs" {
   name_prefix   = "ecs-instance-"
   image_id      = data.aws_ami.ecs.id
-  # Change this line back to t3.medium
-  instance_type = "t3.micro"
+  # CHANGE THIS LINE
+  instance_type = "t2.micro"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance.name
@@ -57,11 +57,13 @@ resource "aws_launch_template" "ecs" {
 }
 
 # Auto Scaling Group for ECS EC2 Instances
+# Auto Scaling Group for ECS EC2 Instances
 resource "aws_autoscaling_group" "ecs_asg" {
-  # Set the desired and minimum count to 2
+  # CHANGE THESE THREE LINES
   desired_capacity    = 2
-  max_size            = 2 # max_size should be >= desired_capacity
+  max_size            = 2
   min_size            = 2
+  
   protect_from_scale_in = true
   vpc_zone_identifier = aws_subnet.public[*].id
 
@@ -114,26 +116,17 @@ resource "aws_ecs_task_definition" "frontend" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
 
-  container_definitions = jsonencode([
+container_definitions = jsonencode([
     {
       name      = "frontend"
       image     = "${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/app-frontend-free:latest"
-      essential = true,
-      
-      # --- ADD THIS ENVIRONMENT BLOCK ---
-      # This tells your frontend container where to find the backend API.
+      essential = true
       environment = [
         {
-          # IMPORTANT: Change this name if your frontend app expects a different variable.
-          name  = "REACT_APP_BACKEND_URL" 
-          # We use the Load Balancer's DNS name dynamically. 
-          # NOTE: This assumes your load balancer resource is named "aws_lb.main". 
-          # If it has a different name, like "aws_lb.app_lb", update it here.
-          # If you don't have the LB resource defined, you can temporarily hardcode the value.
+          name  = "REACT_APP_BACKEND_URL"
           value = "http://${aws_lb.main.dns_name}:5050"
         }
-      ],
-
+      ]
       portMappings = [
         {
           containerPort = 80
@@ -141,6 +134,15 @@ resource "aws_ecs_task_definition" "frontend" {
           protocol      = "tcp"
         }
       ]
+      # --- ADD THIS LOG CONFIGURATION BLOCK ---
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = "/ecs/frontend-task"
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
 }
