@@ -117,7 +117,22 @@ resource "aws_ecs_task_definition" "frontend" {
     {
       name      = "frontend"
       image     = "${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/app-frontend-free:latest"
-      essential = true
+      essential = true,
+      
+      # --- ADD THIS ENVIRONMENT BLOCK ---
+      # This tells your frontend container where to find the backend API.
+      environment = [
+        {
+          # IMPORTANT: Change this name if your frontend app expects a different variable.
+          name  = "REACT_APP_BACKEND_URL" 
+          # We use the Load Balancer's DNS name dynamically. 
+          # NOTE: This assumes your load balancer resource is named "aws_lb.main". 
+          # If it has a different name, like "aws_lb.app_lb", update it here.
+          # If you don't have the LB resource defined, you can temporarily hardcode the value.
+           value = "http://app-lb-749164045.us-east-1.elb.amazonaws.com:5050"
+        }
+      ],
+
       portMappings = [
         {
           containerPort = 80
