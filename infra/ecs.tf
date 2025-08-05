@@ -46,7 +46,8 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
 resource "aws_launch_template" "ecs" {
   name_prefix   = "ecs-instance-"
   image_id      = data.aws_ami.ecs.id
-  instance_type = "t3.small"
+  # Change this line back to t3.medium
+  instance_type = "t3.medium"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance.name
