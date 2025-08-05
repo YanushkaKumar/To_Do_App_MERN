@@ -47,7 +47,7 @@ resource "aws_launch_template" "ecs" {
   name_prefix   = "ecs-instance-"
   image_id      = data.aws_ami.ecs.id
   # Change this line back to t3.medium
-  instance_type = "t3.medium"
+  instance_type = "t3.micro"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance.name
@@ -58,9 +58,10 @@ resource "aws_launch_template" "ecs" {
 
 # Auto Scaling Group for ECS EC2 Instances
 resource "aws_autoscaling_group" "ecs_asg" {
-  desired_capacity    = 1
-  max_size            = 2
-  min_size            = 1
+  # Set the desired and minimum count to 2
+  desired_capacity    = 2
+  max_size            = 2 # max_size should be >= desired_capacity
+  min_size            = 2
   protect_from_scale_in = true
   vpc_zone_identifier = aws_subnet.public[*].id
 
