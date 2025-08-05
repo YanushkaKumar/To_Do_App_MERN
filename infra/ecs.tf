@@ -46,7 +46,7 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
 resource "aws_launch_template" "ecs" {
   name_prefix   = "ecs-instance-"
   image_id      = data.aws_ami.ecs.id
-  instance_type = "t3.small" # Changed from t3.medium
+  instance_type = "t3.small"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance.name
@@ -60,7 +60,7 @@ resource "aws_autoscaling_group" "ecs_asg" {
   desired_capacity    = 1
   max_size            = 2
   min_size            = 1
-  protect_from_scale_in = true # <-- Add this line to enable instance protection
+  protect_from_scale_in = true
   vpc_zone_identifier = aws_subnet.public[*].id
 
   launch_template {
@@ -77,7 +77,7 @@ resource "aws_autoscaling_group" "ecs_asg" {
 
 # ECS Capacity Provider
 resource "aws_ecs_capacity_provider" "ecs_cp" {
-  name = "app-asg-capacity-provider" # Changed from the invalid "ecs-capacity-provider"
+  name = "app-asg-capacity-provider"
 
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.ecs_asg.arn
@@ -91,6 +91,7 @@ resource "aws_ecs_capacity_provider" "ecs_cp" {
     }
   }
 }
+
 # Attach Capacity Provider to Cluster
 resource "aws_ecs_cluster_capacity_providers" "ecs_cp_attach" {
   cluster_name       = aws_ecs_cluster.main.name
@@ -159,21 +160,20 @@ resource "aws_ecs_task_definition" "backend" {
           value = "5050"
         }
       ],
+      # FINAL CORRECTION APPLIED HERE
       secrets = [
         {
           name      = "MONGO_URI"
-          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:MONGO_URI"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:MONGO_URI::"
         },
         {
           name      = "JWT_SECRET"
-          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_SECRET::"
         }
       ]
     }
   ])
 }
-
-
 
 # ECS Service for Frontend
 resource "aws_ecs_service" "frontend" {
@@ -181,6 +181,9 @@ resource "aws_ecs_service" "frontend" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.frontend.arn
   desired_count   = 1
+
+  # Force a new deployment on every apply to ensure changes are picked up
+  force_new_deployment = true
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ecs_cp.name
@@ -190,7 +193,6 @@ resource "aws_ecs_service" "frontend" {
   network_configuration {
     subnets         = aws_subnet.public[*].id
     security_groups = [aws_security_group.ecs_service.id]
-    # assign_public_ip = true # REMOVE THIS LINE - It's not supported for the EC2 launch type
   }
 
   load_balancer {
@@ -209,6 +211,9 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = 1
 
+  # Force a new deployment on every apply to ensure changes are picked up
+  force_new_deployment = true
+
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ecs_cp.name
     weight            = 1
@@ -217,7 +222,6 @@ resource "aws_ecs_service" "backend" {
   network_configuration {
     subnets         = aws_subnet.public[*].id
     security_groups = [aws_security_group.ecs_service.id]
-    # assign_public_ip = true # REMOVE THIS LINE - It's not supported for the EC2 launch type
   }
 
   load_balancer {
