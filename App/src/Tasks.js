@@ -12,9 +12,8 @@ import TaskItem from './TaskItem';
 // FIXED: API Configuration for Docker environment
 // When running in Docker, use relative paths that go through nginx proxy
 // When running in development, use direct backend URL
-const API_BASE_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:5050' 
-  : process.env.REACT_APP_BACKEND_URL;
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_BASE_URL = isDevelopment ? 'http://localhost:5050' : '';
 const API_ENDPOINTS = {
   tasks: `${API_BASE_URL}/api/tasks`, // Note the /api prefix for Docker
 };
