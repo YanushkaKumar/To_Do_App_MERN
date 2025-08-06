@@ -13,7 +13,7 @@ pipeline {
         AWS_REGION              = 'us-east-1'
         FRONTEND_ECR_REPO_NAME  = 'app-frontend-free'
         BACKEND_ECR_REPO_NAME   = 'app-backend-free'
-        ECS_CLUSTER_NAME        = 'app-cluster-free-tier'
+        ECS_CLUSTER_NAME        = 'my-ecs-cluster'
         FRONTEND_SERVICE_NAME   = 'frontend-service'
         BACKEND_SERVICE_NAME    = 'backend-service'
         // Use the build number to create unique image tags
