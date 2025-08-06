@@ -2,7 +2,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# VPC Module
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.1.1"
@@ -21,24 +20,25 @@ module "vpc" {
   }
 }
 
-# ECR Repositories
+resource "aws_ecs_cluster" "this" {
+  name = "my-ecs-cluster"
+}
+
 resource "aws_ecr_repository" "frontend" {
-  name = var.frontend_repo
+  name = "frontend-repo"
 }
-
 resource "aws_ecr_repository" "backend" {
-  name = var.backend_repo
+  name = "backend-repo"
 }
 
-# ECS Task Execution Role
 resource "aws_iam_role" "ecs_task_execution" {
   name = "ecsTaskExecutionRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Effect    = "Allow",
+      Principal = { Service = "ecs-tasks.amazonaws.com" },
       Action    = "sts:AssumeRole"
     }]
   })
@@ -49,18 +49,49 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# ECS Cluster
-resource "aws_ecs_cluster" "this" {
-  name = var.ecs_cluster_name
+resource "aws_ecs_task_definition" "frontend" {
+  family                   = "frontend-task"
+  requires_compatibilities = ["FARGATE"]
+  network_mode            = "awsvpc"
+  cpu                     = "256"
+  memory                  = "512"
+  execution_role_arn      = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([{
+    name      = "frontend"
+    image     = "${aws_ecr_repository.frontend.repository_url}:latest"
+    essential = true
+    portMappings = [{
+      containerPort = 80
+      hostPort      = 80
+    }]
+  }])
 }
 
-# Security Group for ECS and NGINX
+resource "aws_ecs_task_definition" "backend" {
+  family                   = "backend-task"
+  requires_compatibilities = ["FARGATE"]
+  network_mode            = "awsvpc"
+  cpu                     = "256"
+  memory                  = "512"
+  execution_role_arn      = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([{
+    name      = "backend"
+    image     = "${aws_ecr_repository.backend.repository_url}:latest"
+    essential = true
+    portMappings = [{
+      containerPort = 3000
+      hostPort      = 3000
+    }]
+  }])
+}
+
 resource "aws_security_group" "ecs_sg" {
   name   = "ecs-sg"
   vpc_id = module.vpc.vpc_id
 
   ingress {
-    description = "Allow HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -68,7 +99,13 @@ resource "aws_security_group" "ecs_sg" {
   }
 
   ingress {
-    description = "Allow SSH"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -81,60 +118,36 @@ resource "aws_security_group" "ecs_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "ecs-sg"
-  }
 }
 
-# Get latest Amazon Linux 2 AMI in us-east-1
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
+resource "aws_ecs_service" "frontend" {
+  name            = "frontend-service"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.frontend.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
 
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  network_configuration {
+    subnets         = module.vpc.public_subnets
+    security_groups = [aws_security_group.ecs_sg.id]
+    assign_public_ip = true
   }
 
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+  depends_on = [aws_ecs_cluster.this]
 }
 
-# EC2 Instance for NGINX Proxy (Free Tier)
-resource "aws_instance" "nginx_proxy" {
-  ami                         = data.aws_ami.amazon_linux.id
-  instance_type               = "t3.micro"
-  key_name                    = var.ec2_key_name
-  subnet_id                   = module.vpc.public_subnets[0]
-  vpc_security_group_ids      = [aws_security_group.ecs_sg.id]
-  associate_public_ip_address = true
+resource "aws_ecs_service" "backend" {
+  name            = "backend-service"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.backend.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
 
-  user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-              amazon-linux-extras install -y nginx1
-              systemctl start nginx
-              systemctl enable nginx
-
-              cat <<EOT > /etc/nginx/conf.d/reverse-proxy.conf
-              server {
-                  listen 80;
-                  location / {
-                      proxy_pass http://localhost:3000;
-                      proxy_set_header Host \$host;
-                      proxy_set_header X-Real-IP \$remote_addr;
-                      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                  }
-              }
-              EOT
-
-              systemctl restart nginx
-              EOF
-
-  tags = {
-    Name = "nginx-proxy"
+  network_configuration {
+    subnets         = module.vpc.public_subnets
+    security_groups = [aws_security_group.ecs_sg.id]
+    assign_public_ip = true
   }
+
+  depends_on = [aws_ecs_cluster.this]
 }
