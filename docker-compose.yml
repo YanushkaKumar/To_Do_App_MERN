@@ -3,7 +3,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend.Dockerfile
+      dockerfile: Dockerfile
     ports:
       # Map host port 5050 to container port 5050
       - "5050:5050"
@@ -23,7 +23,7 @@ services:
       # --- FIX: The build context is now the project root '.' ---
       context: .
       # We specify the Dockerfile's location within the App directory
-      dockerfile: App/frontend.Dockerfile
+      dockerfile: App/Dockerfile
     ports:
       # Map host port 3000 to container port 80 (Nginx)
       - "3000:80"

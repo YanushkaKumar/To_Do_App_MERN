@@ -1,113 +1,66 @@
-provider "aws" {
-  region = "us-east-1"
-}
-
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "5.1.1"
-
-  name = "ecs-vpc"
-  cidr = "10.0.0.0/16"
-
-  azs            = ["us-east-1a", "us-east-1b"]
-  public_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
-
-  enable_nat_gateway = false
-  single_nat_gateway = true
-
-  tags = {
-    Name = "ecs-vpc"
+# Find the latest Amazon Linux 2 AMI
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
 }
 
-resource "aws_ecs_cluster" "this" {
-  name = "my-ecs-cluster"
+# Define the Virtual Private Cloud (VPC)
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  tags       = { Name = "main-vpc" }
 }
 
-resource "aws_ecr_repository" "frontend" {
-  name = "frontend-repo"
-}
-resource "aws_ecr_repository" "backend" {
-  name = "backend-repo"
-}
-
-resource "aws_iam_role" "ecs_task_execution" {
-  name = "ecsTaskExecutionRole"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect    = "Allow",
-      Principal = { Service = "ecs-tasks.amazonaws.com" },
-      Action    = "sts:AssumeRole"
-    }]
-  })
+# Define the Internet Gateway
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
+  tags   = { Name = "main-igw" }
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
-  role       = aws_iam_role.ecs_task_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+# Define the Public Subnet
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  tags                    = { Name = "public-subnet" }
 }
 
-resource "aws_ecs_task_definition" "frontend" {
-  family                   = "frontend-task"
-  requires_compatibilities = ["FARGATE"]
-  network_mode            = "awsvpc"
-  cpu                     = "256"
-  memory                  = "512"
-  execution_role_arn      = aws_iam_role.ecs_task_execution.arn
-
-  container_definitions = jsonencode([{
-    name      = "frontend"
-    image     = "${aws_ecr_repository.frontend.repository_url}:latest"
-    essential = true
-    portMappings = [{
-      containerPort = 80
-      hostPort      = 80
-    }]
-  }])
-}
-
-resource "aws_ecs_task_definition" "backend" {
-  family                   = "backend-task"
-  requires_compatibilities = ["FARGATE"]
-  network_mode            = "awsvpc"
-  cpu                     = "256"
-  memory                  = "512"
-  execution_role_arn      = aws_iam_role.ecs_task_execution.arn
-
-  container_definitions = jsonencode([{
-    name      = "backend"
-    image     = "${aws_ecr_repository.backend.repository_url}:latest"
-    essential = true
-    portMappings = [{
-      containerPort = 3000
-      hostPort      = 3000
-    }]
-  }])
-}
-
-resource "aws_security_group" "ecs_sg" {
-  name   = "ecs-sg"
-  vpc_id = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+# Define the Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gw.id
   }
+}
 
-  ingress {
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Associate the Route Table with the Public Subnet
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
 
+# Security Group for the App Server
+resource "aws_security_group" "app_server" {
+  name        = "app-server-sg"
+  description = "Allow SSH and App traffic"
+  vpc_id      = aws_vpc.main.id
+
+  # SSH access (so Jenkins can connect)
   ingress {
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Your Node.js App access
+  ingress {
+    from_port   = 5050
+    to_port     = 5050
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -120,34 +73,32 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-resource "aws_ecs_service" "frontend" {
-  name            = "frontend-service"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.frontend.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+# EC2 Instance to run the Docker container
+resource "aws_instance" "app_server" {
+  ami                    = data.aws_ami.amazon_linux_2.id
+  instance_type          = "t3.micro" # Free tier eligible
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.app_server.id]
+  
+  # IMPORTANT: Use the exact name of the key you created in Step 1
+  key_name               = "nginx-key"
 
-  network_configuration {
-    subnets         = module.vpc.public_subnets
-    security_groups = [aws_security_group.ecs_sg.id]
-    assign_public_ip = true
+  # Simplified script: just install and start Docker
+  user_data = <<-EOF
+              #!/bin/bash
+              sudo yum update -y
+              sudo yum install -y docker
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker ec2-user
+              EOF
+
+  tags = {
+    Name = "Todo-App-Server"
   }
-
-  depends_on = [aws_ecs_cluster.this]
 }
 
-resource "aws_ecs_service" "backend" {
-  name            = "backend-service"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = module.vpc.public_subnets
-    security_groups = [aws_security_group.ecs_sg.id]
-    assign_public_ip = true
-  }
-
-  depends_on = [aws_ecs_cluster.this]
+# Output the Public IP of the server
+output "app_server_public_ip" {
+  value = aws_instance.app_server.public_ip
 }

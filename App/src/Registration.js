@@ -33,7 +33,7 @@ function Register() {
         confirmPasswordLength: confirmPassword.length
       });
       
-      const res = await axios.post("http://localhost:5050/api/register", { 
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/register`, { 
         username: username.trim(), 
         password: password.trim() 
       });
@@ -57,7 +57,7 @@ function Register() {
       if (error.response) {
         const errorMessage = error.response.data?.error || 
                            error.response.data?.message || 
-                           `Server error: ${error.response.status}`;
+                           "Server error: " + error.response.status;
         setMessage({ type: "error", text: errorMessage });
         console.log("Server error details:", error.response.data);
       } else if (error.request) {

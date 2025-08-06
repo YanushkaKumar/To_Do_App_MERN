@@ -4,12 +4,12 @@ FROM node:18-alpine AS build
 # Set the working directory
 WORKDIR /app
 
-# The build context is the project root, so we must specify the 'App' sub-directory for these commands.
-COPY App/package*.json ./
+# Copy package files
+COPY package*.json ./
 RUN npm ci --silent
 
 # Copy the rest of the frontend source code
-COPY App/ ./
+COPY . .
 
 # Build the application for production
 RUN npm run build

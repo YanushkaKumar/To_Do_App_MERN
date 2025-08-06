@@ -1,5 +1,5 @@
-// This is a declarative Jenkins pipeline script, corrected for a Windows environment
-// and using the correct Docker login method and Dockerfile paths.
+// This declarative Jenkins pipeline builds and deploys the backend service
+// It triggers automatically on a GitHub push.
 
 pipeline {
     agent any
@@ -11,14 +11,10 @@ pipeline {
     environment {
         AWS_ACCOUNT_ID          = '881962383269'
         AWS_REGION              = 'us-east-1'
-        FRONTEND_ECR_REPO_NAME  = 'app-frontend-free'
         BACKEND_ECR_REPO_NAME   = 'app-backend-free'
         ECS_CLUSTER_NAME        = 'my-ecs-cluster'
-        FRONTEND_SERVICE_NAME   = 'frontend-service'
         BACKEND_SERVICE_NAME    = 'backend-service'
-        // Use the build number to create unique image tags
         IMAGE_TAG               = "build-${BUILD_NUMBER}"
-        // Define the ECR registry URL once
         ECR_REGISTRY_URL        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
 
@@ -35,23 +31,9 @@ pipeline {
                 script {
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
                         echo "Authenticating with AWS ECR..."
-                        // Pipe the password directly to 'docker login' using --password-stdin
+                        // Use bat for Windows agents
                         bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
                     }
-                }
-            }
-        }
-        
-        stage('Build & Push Frontend') {
-            steps {
-                script {
-                    echo "Building and pushing frontend Docker image..."
-                    
-                    // Use the project root as the build context and specify the Dockerfile path
-                    def frontendImage = docker.build("${ECR_REGISTRY_URL}/${FRONTEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f App/frontend.Dockerfile .")
-
-                    frontendImage.push()
-                    frontendImage.push('latest')
                 }
             }
         }
@@ -60,8 +42,8 @@ pipeline {
             steps {
                 script {
                     echo "Building and pushing backend Docker image..."
-                    // Specify the correct Dockerfile name using the -f flag
-                    def backendImage = docker.build("${ECR_REGISTRY_URL}/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f backend.Dockerfile .")
+                    // Use the correct Dockerfile name as provided in your project
+                    def backendImage = docker.build("${ECR_REGISTRY_URL}/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f Dockerfile .")
                     
                     backendImage.push()
                     backendImage.push('latest')
@@ -69,18 +51,13 @@ pipeline {
             }
         }
 
-
-        stage('Deploy to ECS') {
+        stage('Deploy Backend to ECS') {
             steps {
                 script {
-                    echo "Deploying new versions to ECS..."
+                    echo "Deploying new backend version to ECS..."
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        // This tells ECS to restart the service, which will automatically pull the image tagged 'latest'.
-                        echo "Updating backend service..."
+                        // This command tells ECS to restart the service, which will pull the 'latest' image tag.
                         bat "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --force-new-deployment"
-                        
-                        echo "Updating frontend service..."
-                        bat "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${FRONTEND_SERVICE_NAME} --force-new-deployment"
                     }
                 }
             }
@@ -89,6 +66,7 @@ pipeline {
     
     post {
         always {
+            // Good practice to log out after the pipeline finishes
             echo "Logging out from AWS ECR..."
             bat "docker logout ${ECR_REGISTRY_URL}"
         }

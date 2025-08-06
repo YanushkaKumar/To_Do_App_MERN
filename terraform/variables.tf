@@ -1,25 +1,19 @@
 variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "ap-south-1"
+  description = "The AWS region to deploy resources in."
+  default     = "us-east-1"
 }
 
-variable "frontend_repo" {
-  description = "ECR frontend repo name"
-  type        = string
+variable "vpc_cidr" {
+  description = "The CIDR block for the VPC."
+  default     = "10.0.0.0/16"
 }
 
-variable "backend_repo" {
-  description = "ECR backend repo name"
-  type        = string
+variable "subnet_cidr" {
+  description = "The CIDR block for the public subnet."
+  default     = "10.0.1.0/24"
 }
 
-variable "ecs_cluster_name" {
-  description = "ECS Cluster name"
-  type        = string
-}
-
-variable "ec2_key_name" {
-  description = "EC2 key pair name for SSH access"
-  type        = string
+variable "instance_type" {
+  description = "The EC2 instance type for the Jenkins server."
+  default     = "t2.micro"
 }
