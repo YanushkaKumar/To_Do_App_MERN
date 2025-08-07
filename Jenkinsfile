@@ -9,13 +9,15 @@ pipeline {
     }
 
     environment {
-        AWS_ACCOUNT_ID          = '881962383269'
-        AWS_REGION              = 'us-east-1'
-        BACKEND_ECR_REPO_NAME   = 'app-backend-free'
-        ECS_CLUSTER_NAME        = 'my-ecs-cluster'
-        BACKEND_SERVICE_NAME    = 'backend-service'
-        IMAGE_TAG               = "build-${BUILD_NUMBER}"
-        ECR_REGISTRY_URL        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        AWS_ACCOUNT_ID        = '881962383269'
+        AWS_REGION            = 'us-east-1'
+        BACKEND_ECR_REPO_NAME = 'app-backend-free'
+        ECS_CLUSTER_NAME      = 'my-ecs-cluster'
+        BACKEND_SERVICE_NAME  = 'backend-service'
+        IMAGE_TAG             = "build-${BUILD_NUMBER}"
+        ECR_REGISTRY_URL      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        // Full ECR Image URL with the unique build tag
+        ECR_IMAGE_URL         = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}"
     }
 
     stages {
@@ -42,11 +44,10 @@ pipeline {
             steps {
                 script {
                     echo "Building and pushing backend Docker image..."
-                    // Use the correct Dockerfile name as provided in your project
-                    def backendImage = docker.build("${ECR_REGISTRY_URL}/${BACKEND_ECR_REPO_NAME}:${IMAGE_TAG}", "-f Dockerfile .")
+                    def backendImage = docker.build("${ECR_IMAGE_URL}", "-f Dockerfile .")
                     
+                    // Push the unique, build-specific tag
                     backendImage.push()
-                    backendImage.push('latest')
                 }
             }
         }
@@ -56,8 +57,22 @@ pipeline {
                 script {
                     echo "Deploying new backend version to ECS..."
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        // This command tells ECS to restart the service, which will pull the 'latest' image tag.
-                        bat "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --force-new-deployment"
+                        // Step 1: Read the task definition template from your repository
+                        def taskDefTemplate = readFile('task-definition.json')
+                        
+                        // Step 2: Replace the placeholder image URL with the real one for this build
+                        def newTaskDef = taskDefTemplate.replace('__ECR_IMAGE_URL__', ECR_IMAGE_URL)
+
+                        // Step 3: Register the new task definition revision with AWS
+                        // The AWS CLI will return the details of the new revision
+                        bat "aws ecs register-task-definition --cli-input-json \"${newTaskDef}\" > new-task-def.json"
+                        
+                        // Step 4: Extract the new task definition ARN (Amazon Resource Name)
+                        def newTaskDefArn = bat(script: 'powershell -command "(Get-Content -Path .\\new-task-def.json | ConvertFrom-Json).taskDefinition.taskDefinitionArn"', returnStdout: true).trim()
+
+                        // Step 5: Update the ECS service to use the new task definition revision
+                        echo "Updating service with new task definition: ${newTaskDefArn}"
+                        bat "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition ${newTaskDefArn}"
                     }
                 }
             }
@@ -66,9 +81,10 @@ pipeline {
     
     post {
         always {
-            // Good practice to log out after the pipeline finishes
+            // Good practice to clean up temporary files and log out
             echo "Logging out from AWS ECR..."
             bat "docker logout ${ECR_REGISTRY_URL}"
+            deleteDir() // Deletes the workspace
         }
     }
 }

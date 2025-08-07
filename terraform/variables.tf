@@ -14,6 +14,11 @@ variable "subnet_cidr" {
 }
 
 variable "instance_type" {
-  description = "The EC2 instance type for the Jenkins server."
-  default     = "t2.micro"
+  description = "The EC2 instance type for the ECS node."
+  default     = "t3.micro"
+}
+
+variable "key_name" {
+  description = "The name of the existing EC2 key pair to use."
+  default     = "nginx-key"
 }

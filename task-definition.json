@@ -1,0 +1,26 @@
+{
+    "family": "backend-task",
+    "networkMode": "bridge",
+    "containerDefinitions": [
+        {
+            "name": "nginx-container",
+            "image": "__ECR_IMAGE_URL__",
+            "cpu": 256,
+            "memory": 512,
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 5050,
+                    "protocol": "tcp"
+                }
+            ]
+        }
+    ],
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::881962383269:role/ecs-task-execution-role"
+}
