@@ -28,19 +28,6 @@ pipeline {
             }
         }
 
-        // ==================== NEW DIAGNOSTIC STAGE ====================
-        stage('Diagnose AWS Identity') {
-            steps {
-                script {
-                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        echo "Checking the AWS identity being used by the pipeline..."
-                        bat "aws sts get-caller-identity"
-                    }
-                }
-            }
-        }
-        // ==============================================================
-
         stage('Login to AWS ECR') {
             steps {
                 script {
@@ -62,19 +49,18 @@ pipeline {
             }
         }
 
-        stage('Deploy Backend to ECS') {
+        // ==================== TEMPORARY DIAGNOSTIC DEPLOY STAGE ====================
+        stage('Deploy Backend to ECS (Diagnostic)') {
             steps {
                 script {
-                    echo "Deploying new backend version to ECS..."
+                    echo "Attempting to register the new task definition..."
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
                         def taskDefTemplate = readFile('task-definition.json')
                         def newTaskDef = taskDefTemplate.replace('__ECR_IMAGE_URL__', ECR_IMAGE_URL)
                         writeFile(file: 'updated-task-def.json', text: newTaskDef)
-                        def registrationResult = bat(script: 'aws ecs register-task-definition --cli-input-json file://updated-task-def.json', returnStdout: true).trim()
-                        writeFile(file: 'new-task-def.json', text: registrationResult)
-                        def newTaskDefArn = bat(script: 'powershell -command "(Get-Content -Path .\\new-task-def.json | ConvertFrom-Json).taskDefinition.taskDefinitionArn"', returnStdout: true).trim()
-                        echo "Updating service with new task definition: ${newTaskDefArn}"
-                        bat "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition ${newTaskDefArn}"
+                        
+                        // This will now print the REAL error message from AWS
+                        bat "aws ecs register-task-definition --cli-input-json file://updated-task-def.json"
                     }
                 }
             }
