@@ -1,6 +1,6 @@
 // This declarative Jenkins pipeline builds and deploys the backend service
 // It triggers automatically on a GitHub push.
-//
+
 pipeline {
     agent any
 
@@ -28,6 +28,19 @@ pipeline {
             }
         }
 
+        // ==================== NEW DIAGNOSTIC STAGE ====================
+        stage('Diagnose AWS Identity') {
+            steps {
+                script {
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                        echo "Checking the AWS identity being used by the pipeline..."
+                        bat "aws sts get-caller-identity"
+                    }
+                }
+            }
+        }
+        // ==============================================================
+
         stage('Login to AWS ECR') {
             steps {
                 script {
@@ -54,26 +67,12 @@ pipeline {
                 script {
                     echo "Deploying new backend version to ECS..."
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        // Step 1: Read the task definition template
                         def taskDefTemplate = readFile('task-definition.json')
-                        
-                        // Step 2: Inject the correct ECR image URL for this build
                         def newTaskDef = taskDefTemplate.replace('__ECR_IMAGE_URL__', ECR_IMAGE_URL)
-
-                        // Step 3: Write the updated JSON to a temporary file. This is the key fix.
                         writeFile(file: 'updated-task-def.json', text: newTaskDef)
-
-                        // Step 4: Register the new task definition by telling the AWS CLI to read from the file
-                        // The file:// syntax is the most reliable way to pass JSON.
                         def registrationResult = bat(script: 'aws ecs register-task-definition --cli-input-json file://updated-task-def.json', returnStdout: true).trim()
-                        
-                        // Step 5: Write the result to a file so PowerShell can parse it
                         writeFile(file: 'new-task-def.json', text: registrationResult)
-                        
-                        // Step 6: Extract the new task definition ARN (Amazon Resource Name)
                         def newTaskDefArn = bat(script: 'powershell -command "(Get-Content -Path .\\new-task-def.json | ConvertFrom-Json).taskDefinition.taskDefinitionArn"', returnStdout: true).trim()
-
-                        // Step 7: Update the ECS service to use the new task definition revision
                         echo "Updating service with new task definition: ${newTaskDefArn}"
                         bat "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition ${newTaskDefArn}"
                     }
@@ -84,10 +83,9 @@ pipeline {
     
     post {
         always {
-            // Good practice to clean up temporary files and log out
             echo "Logging out from AWS ECR..."
             bat "docker logout ${ECR_REGISTRY_URL}"
-            deleteDir() // Deletes the workspace
+            deleteDir()
         }
     }
 }
