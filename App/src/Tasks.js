@@ -9,10 +9,14 @@ import Sidebar from './Sidebar';
 import AddTaskForm from './AddTaskForm';
 import TaskItem from './TaskItem';
 
-// FIXED: API Configuration for Docker environment
-// When running in Docker, use relative paths that go through nginx proxy
-// When running in development, use direct backend URL
- const res = await axios.post("http://localhost:5050/api/tasks");
+// --- [FIX 1] DEFINE API_BASE_URL FROM ENVIRONMENT VARIABLES ---
+// This makes it consistent with your Login.js and Registration.js files.
+const API_BASE_URL = process.env.REACT_APP_API_URL;
+
+// --- [FIX 2] DEFINE THE API_ENDPOINTS OBJECT THE CODE USES ---
+const API_ENDPOINTS = {
+  tasks: `${API_BASE_URL}/api/tasks`
+};
 
 const AdvancedTodoApp = () => {
   const [tasks, setTasks] = useState([]);
@@ -65,15 +69,10 @@ const AdvancedTodoApp = () => {
         setLoading(true);
         setError('');
         
-        console.log('Fetching tasks from:', API_ENDPOINTS.tasks);
-        console.log('Environment:', process.env.NODE_ENV);
-        console.log('API Base URL:', API_BASE_URL);
-        
+        // This will now work correctly
         const response = await fetch(API_ENDPOINTS.tasks, {
           headers: getHeaders(),
         });
-
-        console.log('Response status:', response.status);
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -88,15 +87,10 @@ const AdvancedTodoApp = () => {
         }
 
         const fetchedTasks = await response.json();
-        console.log('Fetched tasks:', fetchedTasks);
         setTasks(Array.isArray(fetchedTasks) ? fetchedTasks : []);
       } catch (error) {
         console.error('Error fetching tasks:', error);
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          setError(`Cannot connect to server. Please check if your backend is running${isDevelopment ? ' on http://localhost:5050' : ''}`);
-        } else {
-          setError('Network error. Please check your connection and server status.');
-        }
+        setError('Network error. Please check your connection and server status.');
       } finally {
         setLoading(false);
       }
@@ -118,6 +112,7 @@ const AdvancedTodoApp = () => {
     };
 
     try {
+       // This will now work correctly
       const response = await fetch(API_ENDPOINTS.tasks, {
         method: 'POST',
         headers: getHeaders(true),
@@ -158,7 +153,8 @@ const AdvancedTodoApp = () => {
     if (!task) return;
   
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+      // This will now work correctly
+      const response = await fetch(`${API_ENDPOINTS.tasks}/${id}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ completed: !task.completed }),
@@ -181,7 +177,8 @@ const AdvancedTodoApp = () => {
   // Delete task
   const deleteTask = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+       // This will now work correctly
+      const response = await fetch(`${API_ENDPOINTS.tasks}/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       });
@@ -199,30 +196,26 @@ const AdvancedTodoApp = () => {
     }
   };
 
-  // FIXED: Start editing task - now properly handles the task object
+  // Start editing task
   const startEdit = (task) => {
-    console.log('Starting edit for task:', task);
     setEditingTask(task._id);
     setEditingText(task.text);
   };
 
-  // FIXED: Save edited task - improved error handling and validation
+  // Save edited task
   const saveEdit = async () => {
     if (!editingText.trim()) {
       setError('Task text cannot be empty');
       return;
     }
-    
     if (!editingTask) {
       setError('No task selected for editing');
       return;
     }
     
     try {
-      console.log('Saving edit for task ID:', editingTask);
-      console.log('New text:', editingText);
-
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${editingTask}`, {
+      // This will now work correctly
+      const response = await fetch(`${API_ENDPOINTS.tasks}/${editingTask}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ text: editingText.trim() }),
@@ -234,16 +227,11 @@ const AdvancedTodoApp = () => {
       }
 
       const updatedTask = await response.json();
-      console.log('Updated task received:', updatedTask);
-      
       setTasks(prev => prev.map(task => (task._id === editingTask ? updatedTask : task)));
       
-      // Clear editing state
       setEditingTask(null);
       setEditingText('');
       setError('');
-      
-      console.log('Edit saved successfully');
     } catch (error) {
       console.error('Error updating task:', error);
       setError(error.message || 'Failed to update task. Please try again.');
@@ -256,7 +244,8 @@ const AdvancedTodoApp = () => {
     if (!task) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+      // This will now work correctly
+      const response = await fetch(`${API_ENDPOINTS.tasks}/${id}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ archived: !task.archived }),
@@ -273,8 +262,6 @@ const AdvancedTodoApp = () => {
     } catch (error) {
       console.error('Error archiving task:', error);
       setError(error.message || 'Failed to archive task. Please try again.');
-      // Fallback to local state update if backend fails
-      setTasks(prev => prev.map(task => task._id === id ? { ...task, archived: !task.archived } : task));
     }
   };
 
@@ -284,7 +271,8 @@ const AdvancedTodoApp = () => {
     if (!task) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+      // This will now work correctly
+      const response = await fetch(`${API_ENDPOINTS.tasks}/${id}`, {
         method: 'PUT',
         headers: getHeaders(true),
         body: JSON.stringify({ important: !task.important }),
@@ -301,17 +289,14 @@ const AdvancedTodoApp = () => {
     } catch (error) {
       console.error('Error toggling task importance:', error);
       setError(error.message || 'Failed to update task importance. Please try again.');
-      // Fallback to local state update if backend fails
-      setTasks(prev => prev.map(task => task._id === id ? { ...task, important: !task.important } : task));
     }
   };
 
-  // FIXED: Cancel editing - now clears all editing state
+  // Cancel editing
   const cancelEdit = () => {
-    console.log('Canceling edit');
     setEditingTask(null);
     setEditingText('');
-    setError(''); // Clear any edit-related errors
+    setError('');
   };
 
   // Drag and drop handlers
