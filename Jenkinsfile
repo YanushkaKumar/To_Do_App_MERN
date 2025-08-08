@@ -24,7 +24,7 @@ pipeline {
         stage('Login to AWS ECR') {
             steps {
                 script {
-                    withAWS(credentials: 'aws_cred', region: AWS_REGION) {
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
                         def ecrRegistryUrl = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                         echo "Authenticating with AWS ECR at ${ecrRegistryUrl}..."
                         bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ecrRegistryUrl}"
