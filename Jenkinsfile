@@ -1,4 +1,3 @@
-// This declarative Jenkins pipeline builds and deploys the backend service
 pipeline {
     agent any
 
@@ -8,14 +7,11 @@ pipeline {
         BACKEND_ECR_REPO_NAME   = 'app-backend-free'
         ECS_CLUSTER_NAME        = 'my-ecs-cluster'
         BACKEND_SERVICE_NAME    = 'backend-service'
-        // Jenkins Credentials IDs for your secret VALUES
         MONGO_VALUE_CRED_ID    = 'mongo-uri-value'
         JWT_VALUE_CRED_ID      = 'jwt-secret-value'
     }
 
     stages {
-        // ... (Checkout, Login, Build & Push stages remain the same) ...
-
         stage('Checkout') {
             steps {
                 echo 'Checking out source code...'
@@ -53,14 +49,12 @@ pipeline {
                 script {
                     echo "Starting ECS deployment..."
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        // Use Jenkins credentials to securely fetch secret VALUES
                         withCredentials([string(credentialsId: MONGO_VALUE_CRED_ID, variable: 'MONGO_URI_VALUE'),
                                          string(credentialsId: JWT_VALUE_CRED_ID, variable: 'JWT_SECRET_VALUE')]) {
 
                             echo "Preparing new task definition..."
                             def taskDefTemplate = readFile('task-definition.json')
                             
-                            // Replace all placeholders with actual values
                             def newTaskDef = taskDefTemplate.replace('__ECR_IMAGE_URL__', ECR_IMAGE_URL)
                                                             .replace('__MONGO_URI_VALUE__', MONGO_URI_VALUE)
                                                             .replace('__JWT_SECRET_VALUE__', JWT_SECRET_VALUE)
@@ -69,6 +63,9 @@ pipeline {
                             
                             echo "Registering new task definition revision..."
                             def registerOutput = bat(script: "aws ecs register-task-definition --cli-input-json file://updated-task-def.json", returnStdout: true).trim()
+                            
+                            // This new line will print the hidden error message from AWS
+                            echo "AWS Command Output: ${registerOutput}"
                             
                             def newTaskArn = readJSON(text: registerOutput).taskDefinition.taskDefinitionArn
                             echo "Successfully registered Task Definition: ${newTaskArn}"
