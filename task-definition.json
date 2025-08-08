@@ -19,16 +19,14 @@
                 {
                     "name": "NODE_ENV",
                     "value": "production"
-                }
-            ],
-            "secrets": [
+                },
                 {
                     "name": "MONGO_URI",
-                    "valueFrom": "__MONGO_URI_SECRET_ARN__"
+                    "value": "__MONGO_URI_VALUE__"
                 },
                 {
                     "name": "JWT_SECRET",
-                    "valueFrom": "__JWT_SECRET_ARN__"
+                    "value": "__JWT_SECRET_VALUE__"
                 }
             ]
         }

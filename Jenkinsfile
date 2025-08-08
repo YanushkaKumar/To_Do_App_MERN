@@ -8,12 +8,14 @@ pipeline {
         BACKEND_ECR_REPO_NAME   = 'app-backend-free'
         ECS_CLUSTER_NAME        = 'my-ecs-cluster'
         BACKEND_SERVICE_NAME    = 'backend-service'
-        // Jenkins Credentials IDs for your AWS Secrets
-        MONGO_SECRET_CRED_ID    = 'mongo-uri-secret-arn'
-        JWT_SECRET_CRED_ID      = 'jwt-secret-arn'
+        // Jenkins Credentials IDs for your secret VALUES
+        MONGO_VALUE_CRED_ID    = 'mongo-uri-value'
+        JWT_VALUE_CRED_ID      = 'jwt-secret-value'
     }
 
     stages {
+        // ... (Checkout, Login, Build & Push stages remain the same) ...
+
         stage('Checkout') {
             steps {
                 echo 'Checking out source code...'
@@ -51,17 +53,17 @@ pipeline {
                 script {
                     echo "Starting ECS deployment..."
                     withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        // Use Jenkins credentials to securely fetch secret ARNs
-                        withCredentials([string(credentialsId: MONGO_SECRET_CRED_ID, variable: 'MONGO_URI_ARN'),
-                                         string(credentialsId: JWT_SECRET_CRED_ID, variable: 'JWT_SECRET_ARN')]) {
+                        // Use Jenkins credentials to securely fetch secret VALUES
+                        withCredentials([string(credentialsId: MONGO_VALUE_CRED_ID, variable: 'MONGO_URI_VALUE'),
+                                         string(credentialsId: JWT_VALUE_CRED_ID, variable: 'JWT_SECRET_VALUE')]) {
 
                             echo "Preparing new task definition..."
                             def taskDefTemplate = readFile('task-definition.json')
                             
-                            // Replace all placeholders
+                            // Replace all placeholders with actual values
                             def newTaskDef = taskDefTemplate.replace('__ECR_IMAGE_URL__', ECR_IMAGE_URL)
-                                                            .replace('__MONGO_URI_SECRET_ARN__', MONGO_URI_ARN)
-                                                            .replace('__JWT_SECRET_ARN__', JWT_SECRET_ARN)
+                                                            .replace('__MONGO_URI_VALUE__', MONGO_URI_VALUE)
+                                                            .replace('__JWT_SECRET_VALUE__', JWT_SECRET_VALUE)
 
                             writeFile(file: 'updated-task-def.json', text: newTaskDef)
                             
@@ -85,7 +87,6 @@ pipeline {
     
     post {
         always {
-            // *** THIS IS THE CORRECTED BLOCK ***
             script {
                 echo "Pipeline cleanup..."
                 def ecrRegistryUrl = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
