@@ -8,7 +8,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-
+//
 // CORS configuration for Docker
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
