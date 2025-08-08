@@ -66,15 +66,11 @@ pipeline {
                             writeFile(file: 'updated-task-def.json', text: newTaskDef)
                             
                             echo "Registering new task definition revision..."
-                            // Register definition and capture the JSON output
                             def registerOutput = bat(script: "aws ecs register-task-definition --cli-input-json file://updated-task-def.json", returnStdout: true).trim()
                             
-                            // *** THIS IS THE CORRECTED LINE ***
-                            // Parse the output to get the new Task Definition ARN
                             def newTaskArn = readJSON(text: registerOutput).taskDefinition.taskDefinitionArn
                             echo "Successfully registered Task Definition: ${newTaskArn}"
 
-                            // *** THIS IS THE KEY DEPLOYMENT STEP ***
                             echo "Updating ECS service '${BACKEND_SERVICE_NAME}' to use new task definition..."
                             bat """
                                 aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition "${newTaskArn}"
@@ -89,10 +85,13 @@ pipeline {
     
     post {
         always {
-            echo "Pipeline cleanup..."
-            def ecrRegistryUrl = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-            bat "docker logout ${ecrRegistryUrl}"
-            deleteDir()
+            // *** THIS IS THE CORRECTED BLOCK ***
+            script {
+                echo "Pipeline cleanup..."
+                def ecrRegistryUrl = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                bat "docker logout ${ecrRegistryUrl}"
+                deleteDir()
+            }
         }
     }
 }
