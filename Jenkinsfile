@@ -50,7 +50,7 @@ pipeline {
             steps {
                 script {
                     echo "Starting ECS deployment..."
-                    withAWS(credentials: 'aws_cred', region: AWS_REGION) {
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
                         // Use Jenkins credentials to securely fetch secret ARNs
                         withCredentials([string(credentialsId: MONGO_SECRET_CRED_ID, variable: 'MONGO_URI_ARN'),
                                          string(credentialsId: JWT_SECRET_CRED_ID, variable: 'JWT_SECRET_ARN')]) {
