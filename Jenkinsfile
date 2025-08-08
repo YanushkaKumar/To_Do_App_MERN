@@ -69,8 +69,9 @@ pipeline {
                             // Register definition and capture the JSON output
                             def registerOutput = bat(script: "aws ecs register-task-definition --cli-input-json file://updated-task-def.json", returnStdout: true).trim()
                             
+                            // *** THIS IS THE CORRECTED LINE ***
                             // Parse the output to get the new Task Definition ARN
-                            def newTaskArn = (readJSON text: registerOutput).taskDefinition.taskDefinitionArn
+                            def newTaskArn = readJSON(text: registerOutput).taskDefinition.taskDefinitionArn
                             echo "Successfully registered Task Definition: ${newTaskArn}"
 
                             // *** THIS IS THE KEY DEPLOYMENT STEP ***
