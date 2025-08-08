@@ -62,12 +62,13 @@ pipeline {
                             writeFile(file: 'updated-task-def.json', text: newTaskDef)
                             
                             echo "Registering new task definition revision..."
-                            def registerOutput = bat(script: "aws ecs register-task-definition --cli-input-json file://updated-task-def.json", returnStdout: true).trim()
+                            def rawOutput = bat(script: "aws ecs register-task-definition --cli-input-json file://updated-task-def.json", returnStdout: true).trim()
                             
-                            // This new line will print the hidden error message from AWS
-                            echo "AWS Command Output: ${registerOutput}"
+                            // The real error was that rawOutput included the command prompt line.
+                            // This line cleans the string, keeping only the JSON part.
+                            def jsonOutput = rawOutput.substring(rawOutput.indexOf('{'))
                             
-                            def newTaskArn = readJSON(text: registerOutput).taskDefinition.taskDefinitionArn
+                            def newTaskArn = readJSON(text: jsonOutput).taskDefinition.taskDefinitionArn
                             echo "Successfully registered Task Definition: ${newTaskArn}"
 
                             echo "Updating ECS service '${BACKEND_SERVICE_NAME}' to use new task definition..."
