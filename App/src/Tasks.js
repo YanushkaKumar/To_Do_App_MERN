@@ -12,7 +12,10 @@ import TaskItem from './TaskItem';
 // FIXED: API Configuration for Docker environment
 // When running in Docker, use relative paths that go through nginx proxy
 // When running in development, use direct backend URL
- const res = await axios.post("http://localhost:5050/api/tasks");
+const API_BASE_URL = "http://44.213.115.181:5050";
+const API_ENDPOINTS = {
+  tasks: `${API_BASE_URL}/api/tasks`,
+};
 
 const AdvancedTodoApp = () => {
   const [tasks, setTasks] = useState([]);

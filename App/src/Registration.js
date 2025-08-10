@@ -33,10 +33,10 @@ function Register() {
         confirmPasswordLength: confirmPassword.length
       });
       
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/register`, { 
-        username: username.trim(), 
-        password: password.trim() 
-      });
+      await axios.post("http://44.213.115.181:5050/api/auth/register", {
+      username,
+      password,
+    });
       
       console.log("Registration response:", res.data);
       setMessage({ type: "success", text: res.data.message });

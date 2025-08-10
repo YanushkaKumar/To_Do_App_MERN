@@ -23,11 +23,10 @@ function Login() {
     try {
       console.log("Attempting login with:", { username }); // Debug log
       
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/login`, {
-        username: username.trim(),
-        password: password.trim(),
-      });
-
+    await axios.post("http://44.213.115.181:5050/api/login", {
+     username,
+     password,
+  });
       console.log("Login response:", res.data); // Debug log
 
       if (res.data.success && res.data.token) {
