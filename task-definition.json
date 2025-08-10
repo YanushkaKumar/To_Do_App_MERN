@@ -3,16 +3,30 @@
     "networkMode": "bridge",
     "containerDefinitions": [
         {
-            "name": "nginx-container",
+            "name": "app-backend-container",
             "image": "__ECR_IMAGE_URL__",
             "cpu": 256,
             "memory": 512,
             "essential": true,
             "portMappings": [
                 {
-                    "containerPort": 80,
+                    "containerPort": 5050,
                     "hostPort": 5050,
                     "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                {
+                    "name": "NODE_ENV",
+                    "value": "production"
+                },
+                {
+                    "name": "MONGO_URI",
+                    "value": "__MONGO_URI_VALUE__"
+                },
+                {
+                    "name": "JWT_SECRET",
+                    "value": "__JWT_SECRET_VALUE__"
                 }
             ]
         }

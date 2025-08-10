@@ -1,29 +1,30 @@
-# Use an official Node.js runtime as a parent image
+# Use official Node.js base image
 FROM node:18-alpine
 
-# Install wget for health checks
+# Install required tools
 RUN apk add --no-cache wget
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json first for better caching
+# Copy only package files for layer caching
 COPY package*.json ./
 
-# Install dependencies for the backend
+# Install only production dependencies
 RUN npm ci --only=production
 
-# Copy the backend source code into the container
+# Copy the rest of the source code
 COPY . .
 
-# Create a non-root user for security
+# Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
     chown -R nodejs:nodejs /app
 
+# Switch to non-root user
 USER nodejs
 
-# Expose the port your app runs on
+# Expose the backend port
 EXPOSE 5050
 
 # Define the command to run your app
