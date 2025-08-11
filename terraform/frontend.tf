@@ -41,6 +41,9 @@ resource "aws_s3_bucket_policy" "frontend" {
       }
     ]
   })
+
+  # Add this line to fix the error
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
 }
 
 # 5. Output the S3 bucket website URL
