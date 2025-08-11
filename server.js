@@ -10,10 +10,14 @@ const jwt = require('jsonwebtoken');
 const app = express();
 //
 // CORS configuration for Docker
-app.use(cors({
-  origin: '*',
-  credentials: true
-}));
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['http://localhost:3000', 'http://frontend'] 
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
