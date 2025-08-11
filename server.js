@@ -15,8 +15,33 @@ app.use(cors({
   credentials: true
 }));
 
+const allowedOrigins = [
+  'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com'
+  // You can also add 'http://localhost:3000' for local development
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow all methods
+  allowedHeaders: ['Content-Type', 'Authorization'] // Allow necessary headers
+};
+
+app.use(cors(corsOptions));
+// --- End of CORS configuration block ---
 
 app.use(bodyParser.json());
+
+
 
 const JWT_SECRET = process.env.JWT_SECRET || '12345';
 
