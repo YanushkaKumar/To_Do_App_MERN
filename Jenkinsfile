@@ -8,7 +8,7 @@ pipeline {
         ECS_CLUSTER_NAME        = 'my-ecs-cluster'
         BACKEND_SERVICE_NAME    = 'backend-service'
         MONGO_VALUE_CRED_ID    = 'mongo-uri-value'
-        JWT_VALUE_CRED_ID      = 'jwt-secret-value'
+       
     }
 
     stages {
