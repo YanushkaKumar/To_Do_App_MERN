@@ -10,18 +10,17 @@ const jwt = require('jsonwebtoken');
 const app = express();
 //
 // CORS configuration for Docker
-app.use(cors({
-  origin: '*',
-  credentials: true
-}));
+// --- START: CORRECT CORS CONFIGURATION ---
+const cors = require('cors'); // Make sure cors is required at the top
 
 const allowedOrigins = [
   'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com',
-  'http://localhost:3000' // Keep this for local development
+  'http://localhost:3000'
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // Allow requests with no origin (like Postman) or from our allowed list
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -34,9 +33,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Enable pre-flight requests for all routes
+
+// This line is CRITICAL for handling the preflight request
 app.options('*', cors(corsOptions));
-// --- End of CORS Configuration ---
+// --- END: CORRECT CORS CONFIGURATION ---
 
 
 const JWT_SECRET = process.env.JWT_SECRET || '12345';
