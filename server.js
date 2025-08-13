@@ -22,7 +22,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like Postman) or from our allowed list
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -36,9 +35,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 // Enable pre-flight requests for all routes
-app.options('*', cors(corsOptions)); 
+app.options('*', cors(corsOptions));
 // --- End of CORS Configuration ---
-
 
 
 const JWT_SECRET = process.env.JWT_SECRET || '12345';
