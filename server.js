@@ -16,30 +16,28 @@ app.use(cors({
 }));
 
 const allowedOrigins = [
-  'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com'
-  // You can also add 'http://localhost:3000' for local development
+  'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com',
+  'http://localhost:3000' // Keep this for local development
 ];
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like Postman) or from our allowed list
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-    return callback(null, true);
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow all methods
-  allowedHeaders: ['Content-Type', 'Authorization'] // Allow necessary headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 };
 
 app.use(cors(corsOptions));
-// --- End of CORS configuration block ---
-
-app.use(bodyParser.json());
+// Enable pre-flight requests for all routes
+app.options('*', cors(corsOptions)); 
+// --- End of CORS Configuration ---
 
 
 
