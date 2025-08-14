@@ -47,7 +47,7 @@ const corsOptions = {
     }
   }
 };
-
+//
 // 3. Apply CORS middleware to all routes
 app.use(cors(corsOptions));
 
