@@ -20,5 +20,5 @@ variable "instance_type" {
 
 variable "key_name" {
   description = "The name of the existing EC2 key pair to use."
-  default     = "nginx-key"
+  default     = "my-app-v2-key"
 }
