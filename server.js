@@ -21,7 +21,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests from the allowed list or requests with no origin (like Postman)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -30,7 +29,6 @@ const corsOptions = {
   }
 };
 
-// 3. Apply CORS middleware to all routes
 app.use(cors(corsOptions));
 
 
