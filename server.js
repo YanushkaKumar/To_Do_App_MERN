@@ -1,54 +1,36 @@
 require('dotenv').config();
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-//
-// CORS configuration for Docker
-// --- START: CORRECT CORS CONFIGURATION ---
-require('dotenv').config();
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-// No need for the separate 'body-parser' package with modern Express
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+// --- MIDDLEWARE CONFIGURATION ---
 
-
-
-// MIDDLEWARE SETUP
-// ----------------
-
-// 1. Add the body-parser middleware FIRST. This is crucial.
-// This allows your app to read `req.body` from JSON requests.
+// 1. Add body-parser middleware to read JSON from requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
-// 2. Configure CORS
+// 2. Configure CORS options
 const allowedOrigins = [
-  // This is the exact origin from your browser's request header
-  'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com',
+  'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com', // Your S3 bucket origin
   'http://localhost:3000'
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Allow requests from the allowed list or requests with no origin (like Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   }
 };
-//ssjlhdslsdsdslsal
-//yughyjghhuih
+
+// 3. Apply CORS middleware to all routes
 app.use(cors(corsOptions));
 
 
