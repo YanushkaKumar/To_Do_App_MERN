@@ -20,7 +20,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const app = express();
+
 
 // MIDDLEWARE SETUP
 // ----------------
@@ -49,8 +49,6 @@ const corsOptions = {
 };
 //ssjlhdslsdsdslsal
 //yughyjghhuih
-//i need to check jenkins so hthis comment for tha t
-// 3. Apply CORS middleware to all routes
 app.use(cors(corsOptions));
 
 
