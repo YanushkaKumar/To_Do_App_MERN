@@ -9,6 +9,7 @@ function Register() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [isLoading, setIsLoading] = useState(false);
 
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -33,9 +34,11 @@ function Register() {
         confirmPasswordLength: confirmPassword.length
       });
       
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/register`, { 
-        username: username.trim(), 
-        password: password.trim() 
+      const loginUrl = `${API_BASE_URL}/api/register`;
+
+      const res = await axios.post(loginUrl, {
+        username,
+        password,
       });
       
       console.log("Registration response:", res.data);

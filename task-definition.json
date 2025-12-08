@@ -1,40 +1,37 @@
 {
-    "family": "backend-task",
-    "networkMode": "bridge",
-    "containerDefinitions": [
+  "family": "backend-task",
+  "networkMode": "bridge",
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::881962383269:role/ecs-task-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "backend-service",
+      "image": "__ECR_IMAGE_URL__",
+      "essential": true,
+      "portMappings": [
         {
-            "name": "app-backend-container",
-            "image": "__ECR_IMAGE_URL__",
-            "cpu": 256,
-            "memory": 512,
-            "essential": true,
-            "portMappings": [
-                {
-                    "containerPort": 5050,
-                    "hostPort": 5050,
-                    "protocol": "tcp"
-                }
-            ],
-            "environment": [
-                {
-                    "name": "NODE_ENV",
-                    "value": "production"
-                },
-                {
-                    "name": "MONGO_URI",
-                    "value": "__MONGO_URI_VALUE__"
-                },
-                {
-                    "name": "JWT_SECRET",
-                    "value": "__JWT_SECRET_VALUE__"
-                }
-            ]
+          "containerPort": 5050,
+          "hostPort": 5050
         }
-    ],
-    "requiresCompatibilities": [
-        "EC2"
-    ],
-    "cpu": "256",
-    "memory": "512",
-    "executionRoleArn": "arn:aws:iam::881962383269:role/ecs-task-execution-role"
+      ],
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "MONGO_URI",
+          "value": "__MONGO_URI_VALUE__"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "__JWT_SECRET_VALUE__"
+        }
+      ]
+    }
+  ]
 }

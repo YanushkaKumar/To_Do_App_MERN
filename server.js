@@ -1,20 +1,38 @@
 require('dotenv').config();
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const app = express();
 
-app.use(cors({
-  origin: '*',
-  credentials: true
-}));
+// --- MIDDLEWARE CONFIGURATION ---
 
-app.use(bodyParser.json());
+// 1. Add body-parser middleware to read JSON from requests
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 2. Configure CORS options
+const allowedOrigins = [
+  'http://yanushka-unique-react-app-bucket.s3-website-us-east-1.amazonaws.com', // Your S3 bucket origin
+  'http://localhost:3000'
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+
+app.use(cors(corsOptions));
+
+
+// --- ALL YOUR ROUTES AND OTHER CODE GOES AFTER THIS ---
 
 const JWT_SECRET = process.env.JWT_SECRET || '12345';
 
@@ -91,7 +109,7 @@ const optionalAuth = (req, res, next) => {
     }
     next();
 };
-
+//ok okok
 // --- Root Route ---
 app.get('/', (req, res) => {
     res.json({

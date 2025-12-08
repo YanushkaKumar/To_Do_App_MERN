@@ -12,7 +12,7 @@ function Login() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
     // Add validation
     if (!username.trim() || !password.trim()) {
       setError("Please enter both username and password");
@@ -23,11 +23,12 @@ function Login() {
     try {
       console.log("Attempting login with:", { username }); // Debug log
       
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/login`, {
-        username: username.trim(),
-        password: password.trim(),
-      });
+          const loginUrl = `${API_BASE_URL}/api/login`;
 
+      const res = await axios.post(loginUrl, {
+        username,
+        password,
+      });
       console.log("Login response:", res.data); // Debug log
 
       if (res.data.success && res.data.token) {
