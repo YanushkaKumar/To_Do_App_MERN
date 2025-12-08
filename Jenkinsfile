@@ -22,7 +22,10 @@ pipeline {
         stage('Login to AWS ECR') {
             steps {
                 script {
-                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', 
+                                      credentialsId: 'aws-credentials',
+                                      accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                                      secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                         def ecrRegistryUrl = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                         echo "Authenticating with AWS ECR at ${ecrRegistryUrl}..."
                         bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ecrRegistryUrl}"
@@ -48,9 +51,12 @@ pipeline {
             steps {
                 script {
                     echo "Starting ECS deployment..."
-                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
-                        withCredentials([string(credentialsId: MONGO_VALUE_CRED_ID, variable: 'MONGO_URI_VALUE'),
-                                         string(credentialsId: JWT_VALUE_CRED_ID, variable: 'JWT_SECRET_VALUE')]) {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', 
+                                      credentialsId: 'aws-credentials',
+                                      accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                                      secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'],
+                                     string(credentialsId: MONGO_VALUE_CRED_ID, variable: 'MONGO_URI_VALUE'),
+                                     string(credentialsId: JWT_VALUE_CRED_ID, variable: 'JWT_SECRET_VALUE')]) {
 
                             echo "Preparing new task definition..."
                             def taskDefTemplate = readFile('task-definition.json')
@@ -76,7 +82,6 @@ pipeline {
                                 aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${BACKEND_SERVICE_NAME} --task-definition "${newTaskArn}"
                             """
                             echo "Deployment initiated successfully."
-                        }
                     }
                 }
             }
