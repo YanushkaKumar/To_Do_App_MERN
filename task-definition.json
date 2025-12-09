@@ -31,7 +31,15 @@
           "name": "JWT_SECRET",
           "value": "__JWT_SECRET_VALUE__"
         }
-      ]
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/backend-logs",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "backend"
+        }
+      }
     }
   ]
 }
