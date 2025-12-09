@@ -5,7 +5,7 @@
     "EC2"
   ],
   "cpu": "256",
-  "memory": "512",
+  "memory": "256",
   "executionRoleArn": "arn:aws:iam::881962383269:role/ecs-task-execution-role",
   "containerDefinitions": [
     {
