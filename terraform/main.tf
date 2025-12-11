@@ -5,15 +5,10 @@
 # Get current AWS account ID and region for IAM policy
 data "aws_caller_identity" "current" {}
 
-# Get the latest ECS-Optimized Amazon Linux 2 AMI
-data "aws_ami" "ecs_optimized" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
-  }
+# Hardcoded ECS-Optimized Amazon Linux 2 AMI for us-east-1
+# This avoids needing ec2:DescribeImages permission
+locals {
+  ecs_ami_id = "ami-0b3ca45933d9d6d87"
 }
 
 # --- Networking ---
@@ -91,54 +86,11 @@ resource "aws_security_group" "ecs_sg" {
 
 # --- IAM Role and Policies ---
 
-# IAM Role for the ECS Instance
-resource "aws_iam_role" "ecs_instance_role" {
-  name = "ecsInstanceRole"
-
-  assume_role_policy = jsonencode({
-    Version   = "2012-10-17",
-    Statement = [{
-      Action    = "sts:AssumeRole",
-      Effect    = "Allow",
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-    }]
-  })
-}
-
-# Attach the standard ECS policy to the role
-resource "aws_iam_role_policy_attachment" "ecs_instance_attach" {
-  role       = aws_iam_role.ecs_instance_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
-}
-
-# **FIX:** Add policy to allow EC2 Instance Connect
-resource "aws_iam_role_policy" "ec2_instance_connect_policy" {
-  name = "EC2InstanceConnectPolicy"
-  role = aws_iam_role.ecs_instance_role.id
-
-  policy = jsonencode({
-    Version   = "2012-10-17",
-    Statement = [
-      {
-        Action   = "ec2-instance-connect:SendSSHPublicKey",
-        Effect   = "Allow",
-        Resource = "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.ecs_node.id}",
-        Condition = {
-          StringEquals = {
-            "ec2:osuser" = "ec2-user"
-          }
-        }
-      }
-    ]
-  })
-}
-
-# IAM Instance Profile to attach the role to the EC2 instance
+# IAM Instance Profile to attach the existing role to the EC2 instance
+# Using hardcoded role name to avoid needing iam:GetRole permission
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
   name = "ecs-instance-profile"
-  role = aws_iam_role.ecs_instance_role.name
+  role = "ecsInstanceRole"
 }
 
 # --- ECS Cluster & EC2 Instance ---
@@ -150,7 +102,7 @@ resource "aws_ecs_cluster" "main" {
 
 # EC2 Instance that will host the ECS tasks
 resource "aws_instance" "ecs_node" {
-  ami                         = data.aws_ami.ecs_optimized.id
+  ami                         = local.ecs_ami_id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.ecs_sg.id]
